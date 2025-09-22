@@ -1,8 +1,5 @@
 # NexusProbe: Advanced AI Red Teaming Toolkit
 
-<p align="center">
-  <img src="https://i.imgur.com/2YyL2qg.png" alt="NexusProbe UI Screenshot" width="800"/>
-</p>
 
 NexusProbe is an advanced, enterprise-grade security toolkit designed for red teaming and vulnerability assessment of Large Language Models (LLMs). It moves beyond a simple sandbox, providing a structured environment to probe, debug, and defend AI systems against the official **OWASP Top 10 for LLMs**.
 
