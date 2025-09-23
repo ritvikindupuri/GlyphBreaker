@@ -33,6 +33,29 @@
         }
       }
     </script>
+    <style>
+      /* Custom scrollbar for Webkit browsers (Chrome, Safari) */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #121820; /* sentinel-surface */
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #2A3340; /* sentinel-border */
+        border-radius: 4px;
+        border: 2px solid #121820; /* sentinel-surface */
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: #8A99AB; /* sentinel-text-secondary */
+      }
+
+      /* Custom scrollbar for Firefox */
+      .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #2A3340 #121820;
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {

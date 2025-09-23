@@ -10,6 +10,7 @@ interface ControlPanelProps {
     apiKeys: ApiKeys;
     chatInput: string;
     isCacheEnabled: boolean;
+    currentAttack: AttackTemplate | null;
     onApiKeysChange: (keys: ApiKeys) => void;
     onLlmConfigChange: (config: LlmConfig) => void;
     onSystemPromptChange: (prompt: string) => void;
@@ -32,6 +33,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     apiKeys,
     chatInput,
     isCacheEnabled,
+    currentAttack,
     onApiKeysChange,
     onLlmConfigChange,
     onSystemPromptChange,
@@ -41,15 +43,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onSelectAttack,
     onShowDebugger,
 }) => {
-    const [selectedAttackName, setSelectedAttackName] = useState<string>('');
     const [keyVisibility, setKeyVisibility] = useState({ openAI: false, ollama: false });
     const { llmConfig, systemPrompt } = session;
-
-    const selectedAttackTemplate = attackTemplates.find(t => t.name === selectedAttackName) || null;
-
-    useEffect(() => {
-        setSelectedAttackName('');
-    }, [session.id]);
 
     const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newProvider = e.target.value as ModelProvider;
@@ -63,7 +58,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
     const handleAttackChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const templateName = e.target.value;
-        setSelectedAttackName(templateName);
         const template = attackTemplates.find(t => t.name === templateName) || null;
         onSelectAttack(template);
     };
@@ -187,21 +181,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 )}
                 <div>
                     <label htmlFor="attack_template" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Attack Templates</label>
-                    <select id="attack_template" value={selectedAttackName} onChange={handleAttackChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
+                    <select id="attack_template" value={currentAttack?.name || ''} onChange={handleAttackChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
                         <option value="">Select an attack...</option>
                         {attackTemplates.map(t => (
                             <option key={t.name} value={t.name}>{t.name}</option>
                         ))}
                     </select>
                 </div>
-                 {selectedAttackTemplate && (
+                 {currentAttack && (
                     <div className="relative group flex items-center gap-2 text-xs text-sentinel-text-secondary bg-sentinel-bg/40 p-2 rounded-md border border-sentinel-border/50">
                         <InfoIcon className="h-4 w-4 flex-shrink-0" />
-                        <span>{selectedAttackTemplate.description}</span>
+                        <span>{currentAttack.description}</span>
                     </div>
                 )}
 
-                {selectedAttackTemplate && (
+                {currentAttack && (
                     <div>
                         <label htmlFor="system_prompt_template" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Suggested System Prompts</label>
                         <select
@@ -210,7 +204,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                             onChange={handleSystemPromptTemplateChange}
                             className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary"
                         >
-                            {selectedAttackTemplate.suggestedSystemPrompts.map(p => (
+                            {currentAttack.suggestedSystemPrompts.map(p => (
                                 <option key={p.name} value={p.prompt}>{p.name}</option>
                             ))}
                         </select>

@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -8,237 +9,235 @@ import SessionHistoryModal from './components/SessionHistoryModal';
 import PromptDebuggerModal from './components/PromptDebuggerModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import { streamLlmResponse, streamAnalysis } from './services/llmService';
-import type { Session, Message, AttackTemplate, LlmConfig, ApiKeys } from './types';
-import { ATTACK_TEMPLATES } from './constants';
+import type { Session, Message, LlmConfig, ApiKeys, AttackTemplate } from './types';
+import { MODEL_OPTIONS, ATTACK_TEMPLATES } from './constants';
+
+const initialLlmConfig: LlmConfig = {
+    provider: 'gemini',
+    model: MODEL_OPTIONS.gemini[0],
+    temperature: 0.7,
+    topP: 0.95,
+    topK: 40,
+};
+
+const FORMAT_INSTRUCTION = `You MUST format your responses.
+- For general text, use the format 'SECTION: Title' and 'BULLET: Content'.
+- For tabular data, respond ONLY with a JSON object with this exact structure: {"type": "json_table", "data": {"headers": ["Header1"], "rows": [["Row1Col1"]]}}.
+- For bar charts, respond ONLY with a JSON object with this exact structure: {"type": "json_chart", "data": {"title": "Chart Title", "values": [{"label": "A", "value": 10}]}}.
+Do not include any other text, explanation, or markdown formatting outside of the JSON object if you are creating a table or chart.`;
+
+
+const createNewSession = (): Session => ({
+    id: uuidv4(),
+    messages: [],
+    systemPrompt: `You are a helpful assistant. ${FORMAT_INSTRUCTION}`,
+    llmConfig: initialLlmConfig,
+});
 
 const App: React.FC = () => {
-    const [sessions, setSessions] = useState<Session[]>(() => {
-        const initialSessionId = uuidv4();
-        return [{
-            id: initialSessionId,
-            messages: [],
-            systemPrompt: `You are a helpful AI assistant.
-- You MUST format your responses using standard markdown. Use bolding for headers (e.g., '**Header**'), bullet points for lists (e.g., '* Item'), and code blocks for code.
-- For tabular data, always use markdown tables.
-- For bar charts, you MUST respond with ONLY the following JSON structure inside a markdown code block with the language hint 'json_chart':
-\`\`\`json_chart
-{
-  "type": "bar_chart",
-  "title": "Chart Title",
-  "data": [
-    {"label": "Category A", "value": 10},
-    {"label": "Category B", "value": 20}
-  ]
-}
-\`\`\`
-- Do not add any explanatory text outside of the JSON block if a chart is requested.`,
-            llmConfig: {
-                provider: 'gemini',
-                temperature: 0.7,
-                topP: 1,
-                topK: 40,
-                model: 'gemini-2.5-flash',
-            },
-        }];
-    });
-    const [currentSessionId, setCurrentSessionId] = useState<string>(sessions[0].id);
-    const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
+    // State initialization
+    const [session, setSession] = useState<Session>(createNewSession());
+    const [sessionsHistory, setSessionsHistory] = useState<Session[]>([]);
+    const [apiKeys, setApiKeys] = useState<ApiKeys>({ openAI: '', ollama: '' });
+    const [chatInput, setChatInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCacheEnabled, setCacheEnabled] = useState(true);
+    const [currentAttack, setCurrentAttack] = useState<AttackTemplate | null>(null);
+
+    // UI state
     const [isHistoryVisible, setHistoryVisible] = useState(false);
     const [isDebuggerVisible, setDebuggerVisible] = useState(false);
-    const [apiKeys, setApiKeys] = useState<ApiKeys>({ openAI: '', ollama: '' });
-    const [isLoading, setIsLoading] = useState(false);
-    const [chatInput, setChatInput] = useState('');
-    const [isCacheEnabled, setCacheEnabled] = useState(true);
-    const [confirmationDetails, setConfirmationDetails] = useState<{
-        title: string;
-        message: string;
-        onConfirm: () => void;
-    } | null>(null);
+    const [isClearConfirmationVisible, setClearConfirmationVisible] = useState(false);
 
+    // Load state from localStorage on mount
+    useEffect(() => {
+        try {
+            const savedApiKeys = localStorage.getItem('glyph_apiKeys');
+            if (savedApiKeys) setApiKeys(JSON.parse(savedApiKeys));
 
-    const currentSession = useMemo(() => sessions.find(s => s.id === currentSessionId) as Session, [sessions, currentSessionId]);
+            const savedCacheSetting = localStorage.getItem('glyph_cacheEnabled');
+            if (savedCacheSetting) setCacheEnabled(JSON.parse(savedCacheSetting));
+            
+            const savedHistory = localStorage.getItem('glyph_sessionsHistory');
+            if(savedHistory) setSessionsHistory(JSON.parse(savedHistory));
+        } catch (error) {
+            console.error("Failed to load state from localStorage", error);
+        }
+    }, []);
 
-    const updateCurrentSession = useCallback((updates: Partial<Session>) => {
-        setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, ...updates } : s));
-    }, [currentSessionId]);
+    // Save state to localStorage on change
+    useEffect(() => {
+        try {
+            localStorage.setItem('glyph_apiKeys', JSON.stringify(apiKeys));
+        } catch (error) {
+            console.error("Failed to save API keys to localStorage", error);
+        }
+    }, [apiKeys]);
+    
+    useEffect(() => {
+        try {
+            localStorage.setItem('glyph_cacheEnabled', JSON.stringify(isCacheEnabled));
+        } catch (error) {
+            console.error("Failed to save cache setting to localStorage", error);
+        }
+    }, [isCacheEnabled]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('glyph_sessionsHistory', JSON.stringify(sessionsHistory));
+        } catch (error) {
+            console.error("Failed to save session history to localStorage", error);
+        }
+    }, [sessionsHistory]);
 
     const handleLlmConfigChange = (newConfig: LlmConfig) => {
-        const oldConfig = currentSession.llmConfig;
-
-        const hasProviderChanged = oldConfig.provider !== newConfig.provider;
-        const hasModelChanged = oldConfig.model !== newConfig.model && !hasProviderChanged;
-
-        if (!hasProviderChanged && !hasModelChanged) {
-            updateCurrentSession({ llmConfig: newConfig });
-            return;
-        }
-
-        let title = '';
-        let message = '';
-
-        if (hasProviderChanged) {
-            title = 'Change Model Provider?';
-            message = `You are switching from "${oldConfig.provider}" to "${newConfig.provider}". This will reset the selected model to its default. Are you sure?`;
-        } else if (hasModelChanged) {
-            title = 'Change Model?';
-            message = `You are about to switch the model from "${oldConfig.model}" to "${newConfig.model}". Continue?`;
-        }
-
-        setConfirmationDetails({
-            title,
-            message,
-            onConfirm: () => updateCurrentSession({ llmConfig: newConfig }),
-        });
+        setSession(prev => ({ ...prev, llmConfig: newConfig }));
     };
 
-    const handleSendMessage = useCallback(async () => {
-        if (!chatInput.trim() || isLoading) return;
+    const handleSystemPromptChange = (newPrompt: string) => {
+        setSession(prev => ({ ...prev, systemPrompt: newPrompt }));
+    };
 
-        const userInput = chatInput;
-        setChatInput(''); // Clear input immediately
+    const handleClearSession = () => {
+        if (session.messages.length > 0) {
+            setSessionsHistory(prev => [session, ...prev]);
+        }
+        setSession(createNewSession());
+        setCurrentAttack(null);
+        setClearConfirmationVisible(false);
+    };
+    
+    const handleRestoreSession = (sessionId: string) => {
+        const sessionToRestore = sessionsHistory.find(s => s.id === sessionId);
+        if (sessionToRestore) {
+            setSession(sessionToRestore);
+            setSessionsHistory(prev => prev.filter(s => s.id !== sessionId));
+            setHistoryVisible(false);
+        }
+    };
 
-        const userMessage: Message = { id: uuidv4(), role: 'user', content: userInput };
-        const newMessages = [...currentSession.messages, userMessage];
-        updateCurrentSession({ messages: newMessages });
+    const handleSelectAttack = useCallback((template: AttackTemplate | null) => {
+        setCurrentAttack(template);
+        if (template) {
+            setChatInput(template.userPrompt);
+            if (template.suggestedSystemPrompts.length > 0) {
+                setSession(prev => ({ ...prev, systemPrompt: template.suggestedSystemPrompts[0].prompt }));
+            }
+        } else {
+            setChatInput('');
+        }
+    }, []);
+    
+    const handleApplyDebuggerPrompt = (newPrompt: string) => {
+        handleSystemPromptChange(newPrompt);
+        setDebuggerVisible(false);
+    };
+
+
+    const handleSendMessage = async (messageContent: string) => {
+        if (!messageContent.trim() || isLoading) return;
+
+        const userMessage: Message = { id: uuidv4(), role: 'user', content: messageContent };
+        const updatedMessages = [...session.messages, userMessage];
+        
+        setSession(prev => ({ ...prev, messages: updatedMessages }));
         setIsLoading(true);
+        setChatInput('');
 
-        // Use a timeout to allow the UI to update and render the spinner before the API call might block the event loop.
+        // Use a timeout to allow the UI to update before the potentially blocking API call
         setTimeout(async () => {
-            const aiResponseMessage: Message = { id: uuidv4(), role: 'assistant', content: '' };
+            const assistantMessage: Message = { id: uuidv4(), role: 'assistant', content: '' };
             
             try {
                 const stream = streamLlmResponse(
-                    currentSession.llmConfig.provider,
-                    [...newMessages],
+                    session.llmConfig.provider,
+                    updatedMessages,
                     apiKeys,
-                    currentSession.systemPrompt,
-                    { temperature: currentSession.llmConfig.temperature, topP: currentSession.llmConfig.topP, topK: currentSession.llmConfig.topK, model: currentSession.llmConfig.model },
+                    session.systemPrompt,
+                    session.llmConfig,
                     isCacheEnabled
                 );
-
+                
                 for await (const chunk of stream) {
-                    aiResponseMessage.content += chunk;
-                    updateCurrentSession({ messages: [...newMessages, { ...aiResponseMessage }] });
+                    assistantMessage.content += chunk;
+                    setSession(prev => ({
+                        ...prev,
+                        messages: [...updatedMessages, { ...assistantMessage }]
+                    }));
                 }
             } catch (error) {
-                console.error('LLM API Error:', error);
-                aiResponseMessage.content = `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`;
-                updateCurrentSession({ messages: [...newMessages, aiResponseMessage] });
+                console.error('LLM Error:', error);
+                assistantMessage.content = error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred.';
+                setSession(prev => ({
+                    ...prev,
+                    messages: [...updatedMessages, assistantMessage]
+                }));
             } finally {
                 setIsLoading(false);
             }
         }, 0);
-    }, [currentSession, apiKeys, isLoading, updateCurrentSession, chatInput, isCacheEnabled]);
-
-    const handleClearSession = useCallback(() => {
-        if (!currentSession) return;
-        setDeletedSessions(prev => [...prev, currentSession]);
-        
-        const newSessionId = uuidv4();
-        const newSession: Session = {
-            id: newSessionId,
-            messages: [],
-            systemPrompt: currentSession.systemPrompt,
-            llmConfig: currentSession.llmConfig,
-        };
-        
-        setSessions(prev => [...prev.filter(s => s.id !== currentSessionId), newSession]);
-        setCurrentSessionId(newSessionId);
-        setChatInput('');
-    }, [currentSession, currentSessionId]);
-
-    const handleRestoreSession = useCallback((sessionId: string) => {
-        const sessionToRestore = deletedSessions.find(s => s.id === sessionId);
-        if (sessionToRestore) {
-            setSessions(prev => [...prev, sessionToRestore]);
-            setDeletedSessions(prev => prev.filter(s => s.id !== sessionId));
-            setCurrentSessionId(sessionId);
-            setHistoryVisible(false);
-        }
-    }, [deletedSessions]);
-
-    const handleSelectAttack = (template: AttackTemplate | null) => {
-        if (template) {
-            // Set the system prompt to the first suggested one as a default
-            if (template.suggestedSystemPrompts.length > 0) {
-                 updateCurrentSession({ systemPrompt: template.suggestedSystemPrompts[0].prompt });
-            }
-            // Set the user prompt
-            setChatInput(template.userPrompt);
-        }
-    };
-    
-    const handleApplyDebugger = (newPrompt: string) => {
-        updateCurrentSession({ systemPrompt: newPrompt });
-        setDebuggerVisible(false);
     };
 
     return (
-        <div className="min-h-screen flex flex-col text-sentinel-text-primary bg-sentinel-bg font-sans">
+        <div className="flex flex-col h-screen bg-sentinel-bg text-sentinel-text-primary font-sans">
             <Header onShowHistory={() => setHistoryVisible(true)} />
-            <main className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-4 p-4">
-                <div className="md:col-span-4 lg:col-span-4 h-[calc(100vh-90px)]">
+            <main className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-4 p-4 overflow-hidden">
+                <div className="md:col-span-3 h-full min-h-0">
                     <ControlPanel
-                        session={currentSession}
+                        session={session}
                         apiKeys={apiKeys}
                         chatInput={chatInput}
                         isCacheEnabled={isCacheEnabled}
+                        currentAttack={currentAttack}
                         onApiKeysChange={setApiKeys}
                         onLlmConfigChange={handleLlmConfigChange}
-                        onSystemPromptChange={(prompt) => updateCurrentSession({ systemPrompt: prompt })}
-                        onClearSession={handleClearSession}
+                        onSystemPromptChange={handleSystemPromptChange}
+                        onClearSession={() => setClearConfirmationVisible(true)}
                         onCacheToggle={setCacheEnabled}
                         attackTemplates={ATTACK_TEMPLATES}
                         onSelectAttack={handleSelectAttack}
                         onShowDebugger={() => setDebuggerVisible(true)}
                     />
                 </div>
-                <div className="md:col-span-8 lg:col-span-8 flex flex-col gap-4 h-[calc(100vh-90px)]">
-                    <div className="flex-[3] min-h-0">
-                        <ChatPanel
-                            messages={currentSession.messages}
-                            inputValue={chatInput}
-                            onInputChange={setChatInput}
-                            onSendMessage={handleSendMessage}
-                            isLoading={isLoading}
-                        />
-                    </div>
-                    <div className="flex-[2] min-h-0">
-                         <DefenseAnalysisPanel 
-                            messages={currentSession.messages} 
-                            streamAnalysis={streamAnalysis} 
-                         />
-                    </div>
+                <div className="md:col-span-6 h-full flex flex-col min-h-0">
+                    <ChatPanel
+                        session={session}
+                        chatInput={chatInput}
+                        onChatInputChange={setChatInput}
+                        onSendMessage={handleSendMessage}
+                        isLoading={isLoading}
+                    />
+                </div>
+                <div className="md:col-span-3 h-full min-h-0">
+                    <DefenseAnalysisPanel
+                        messages={session.messages}
+                        streamAnalysis={streamAnalysis}
+                    />
                 </div>
             </main>
             {isHistoryVisible && (
                 <SessionHistoryModal
-                    sessions={deletedSessions}
+                    sessions={sessionsHistory}
                     onClose={() => setHistoryVisible(false)}
                     onRestore={handleRestoreSession}
                 />
             )}
-            {isDebuggerVisible && (
-                 <PromptDebuggerModal
-                    isOpen={isDebuggerVisible}
-                    onClose={() => setDebuggerVisible(false)}
-                    systemPrompt={currentSession.systemPrompt}
-                    userPrompt={chatInput}
-                    messages={currentSession.messages}
-                    onApply={handleApplyDebugger}
-                />
-            )}
-            {confirmationDetails && (
+            <PromptDebuggerModal
+                isOpen={isDebuggerVisible}
+                onClose={() => setDebuggerVisible(false)}
+                systemPrompt={session.systemPrompt}
+                userPrompt={chatInput}
+                messages={session.messages}
+                onApply={handleApplyDebuggerPrompt}
+            />
+            {isClearConfirmationVisible && (
                 <ConfirmationModal
-                    isOpen={!!confirmationDetails}
-                    title={confirmationDetails.title}
-                    onConfirm={() => {
-                        confirmationDetails.onConfirm();
-                        setConfirmationDetails(null);
-                    }}
-                    onCancel={() => setConfirmationDetails(null)}
+                    isOpen={isClearConfirmationVisible}
+                    onConfirm={handleClearSession}
+                    onCancel={() => setClearConfirmationVisible(false)}
+                    title="Clear Current Session?"
                 >
-                    <p>{confirmationDetails.message}</p>
+                   <p>Are you sure you want to clear the current chat session? This will move it to your session history.</p>
                 </ConfirmationModal>
             )}
         </div>

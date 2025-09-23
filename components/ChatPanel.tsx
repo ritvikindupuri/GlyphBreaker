@@ -1,185 +1,211 @@
+
 import React, { useRef, useEffect, useState } from 'react';
-import type { Message } from '../types';
+import type { Session, Message } from '../types';
 import { ThinkingDots } from './icons/ThinkingDots';
 import { BarChart } from './charts/BarChart';
+import { JsonTable } from './JsonTable';
 
-interface ChatPanelProps {
-    messages: Message[];
-    inputValue: string;
-    onInputChange: (value: string) => void;
-    onSendMessage: () => void;
-    isLoading: boolean;
-}
+// Helper to parse content and determine its type for rendering
+const parseContent = (content: string) => {
+    try {
+        const json = JSON.parse(content);
+        if (json.type === 'json_chart' && json.data?.values) {
+            return { type: 'chart', data: json.data };
+        }
+        if (json.type === 'json_table' && json.data?.headers && json.data?.rows) {
+            return { type: 'table', data: json.data };
+        }
+    } catch (e) {
+        // Not a valid JSON object for charts or tables, fall through to text parsing
+    }
 
-const toHtml = (text: string) => {
-    let html = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    if (lines.some(line => line.startsWith('SECTION:') || line.startsWith('BULLET:'))) {
+        const sections: { title: string; bullets: string[] }[] = [];
+        let currentSection: { title: string; bullets: string[] } | null = null;
 
-    // Code blocks
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-        return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
-    });
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Tables
-    html = html.replace(/^\|(.+)\|\s*\n\|( *[-:]+[-| :]*)\|\s*\n((?:\|.*\|\s*\n?)*)/gm, (match) => {
-        const rows = match.trim().split('\n');
-        const header = `<thead><tr>${rows[0].slice(1, -1).split('|').map(h => `<th>${h.trim()}</th>`).join('')}</tr></thead>`;
-        const body = `<tbody>${rows.slice(2).map(r => `<tr>${r.slice(1, -1).split('|').map(c => `<td>${c.trim()}</td>`).join('')}</tr>`).join('')}</tbody>`;
-        return `<table>${header}${body}</table>`;
-    });
-
-    // Headings
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Lists
-    html = html.replace(/((?:^\s*[\-\*]\s.*\n?)+)/gm, (match) => {
-        const items = match.trim().split('\n').map(item => `<li>${item.replace(/^\s*[\-\*]\s/, '').trim()}</li>`).join('');
-        return `<ul>${items}</ul>`;
-    });
-     html = html.replace(/((?:^\s*\d+\.\s.*\n?)+)/gm, (match) => {
-        const items = match.trim().split('\n').map(item => `<li>${item.replace(/^\s*\d+\.\s/, '').trim()}</li>`).join('');
-        return `<ol>${items}</ol>`;
-    });
-
-    // Paragraphs
-    html = html.replace(/\n\n/g, '</p><p>');
-    html = `<p>${html}</p>`;
-    // Cleanup empty paragraphs and fix paragraphing around block elements
-    html = html.replace(/<p><(h[1-6]|ul|ol|pre|table)>/g, '<$1>');
-    html = html.replace(/<\/(h[1-6]|ul|ol|pre|table)><\/p>/g, '</$1>');
-    html = html.replace(/<p>\s*<\/p>/g, '');
-
-    return html;
-};
-
-
-const CopyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
-    <path d="M7 3.5A1.5 1.5 0 018.5 2h5.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 01.439 1.062V11.5A1.5 1.5 0 0116.5 13H13v-2.5A1.5 1.5 0 0011.5 9H9V6.5A1.5 1.5 0 007.5 5H4.5A1.5 1.5 0 003 6.5v8A1.5 1.5 0 004.5 16H8v-2.5A1.5 1.5 0 019.5 12H12v-1.5a.5.5 0 01.5-.5h1.5a.5.5 0 01.5.5V12H16v.5a1.5 1.5 0 01-1.5 1.5h-2.5a.5.5 0 00-.5.5v1.5H9.5A1.5 1.5 0 018 18H4.5A1.5 1.5 0 013 16.5v-8A1.5 1.5 0 014.5 7H7V3.5z" />
-  </svg>
-);
-
-
-const AiMessageContent: React.FC<{ content: string }> = ({ content }) => {
-    const [copied, setCopied] = useState(false);
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(content);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    const chartRegex = /```json_chart\n([\s\S]*?)```/;
-    const match = content.match(chartRegex);
-
-    if (match) {
-        try {
-            const chartData = JSON.parse(match[1]);
-            if (chartData.type === 'bar_chart') {
-                return <BarChart title={chartData.title} data={chartData.data} />;
+        lines.forEach(line => {
+            if (line.startsWith('SECTION:')) {
+                if (currentSection) sections.push(currentSection);
+                currentSection = { title: line.replace('SECTION:', '').trim(), bullets: [] };
+            } else if (line.startsWith('BULLET:') && currentSection) {
+                currentSection.bullets.push(line.replace('BULLET:', '').trim());
+            } else if (currentSection) { // Handle multiline bullets
+                const lastBulletIndex = currentSection.bullets.length - 1;
+                if(lastBulletIndex >= 0) {
+                    currentSection.bullets[lastBulletIndex] += '\n' + line;
+                }
+            } else {
+                 // Line before any section, treat as part of a default section
+                 if (!currentSection) {
+                    currentSection = { title: '', bullets: [] };
+                 }
+                 currentSection.bullets.push(line);
             }
-        } catch (e) {
-            // Fallback to text if JSON is invalid
+        });
+        if (currentSection) sections.push(currentSection);
+        
+        if (sections.length > 0) {
+            return { type: 'structured_text', data: sections };
         }
     }
 
+    return { type: 'plain_text', data: content };
+};
+
+const CopyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+        <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM4 11a1 1 0 100 2h4a1 1 0 100-2H4z" />
+        <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1V5a1 1 0 00-1-1H4z" clipRule="evenodd" />
+    </svg>
+);
+
+const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
+    const isUser = message.role === 'user';
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(message.content);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    const renderContent = () => {
+        if (!message.content) return null;
+        const parsed = parseContent(message.content);
+        
+        switch (parsed.type) {
+            case 'chart':
+                return <BarChart title={parsed.data.title} data={parsed.data.values} />;
+            case 'table':
+                return <JsonTable data={parsed.data} />;
+            case 'structured_text':
+                return (
+                    <div className="space-y-4 text-sm">
+                        {parsed.data.map((section, i) => (
+                            <div key={i}>
+                                {section.title && <h4 className="font-bold text-sentinel-text-primary mb-1">{section.title}</h4>}
+                                {section.bullets.length > 0 &&
+                                    <ul className="list-disc list-inside space-y-1 pl-2">
+                                        {section.bullets.map((bullet, j) => (
+                                            <li key={j} className="whitespace-pre-wrap">{bullet}</li>
+                                        ))}
+                                    </ul>
+                                }
+                            </div>
+                        ))}
+                    </div>
+                );
+            case 'plain_text':
+            default:
+                return <p className="text-sm whitespace-pre-wrap">{message.content}</p>;
+        }
+    };
+    
     return (
-        <div className="group relative">
-            <button
-                onClick={handleCopy}
-                className="absolute top-1 right-1 p-1.5 bg-sentinel-surface/50 text-sentinel-text-secondary rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:text-sentinel-text-primary"
-                aria-label="Copy message"
-            >
-                <CopyIcon className="h-4 w-4" />
-                {copied && <span className="absolute -top-7 right-0 text-xs bg-sentinel-primary text-white px-2 py-0.5 rounded">Copied!</span>}
-            </button>
-            <div className="prose prose-sm prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-table:my-3 prose-table:w-full prose-th:bg-sentinel-bg prose-th:p-2 prose-td:p-2 prose-tr:border-b prose-tr:border-sentinel-border prose-code:bg-sentinel-bg prose-code:px-1 prose-code:rounded prose-pre:bg-sentinel-bg prose-pre:p-3 prose-pre:rounded-md" dangerouslySetInnerHTML={{ __html: toHtml(content) }} />
+        <div className={`flex items-start gap-3 my-4 ${isUser ? 'justify-end' : ''}`}>
+            {!isUser && (
+                <div className="w-8 h-8 rounded-full bg-sentinel-border flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    AI
+                </div>
+            )}
+            <div className={`group relative max-w-[80%] p-3 rounded-lg ${isUser ? 'bg-sentinel-primary text-white' : 'bg-sentinel-bg text-sentinel-text-secondary'}`}>
+                {renderContent()}
+                {!isUser && message.content && (
+                    <button 
+                        onClick={handleCopy}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-sentinel-surface/50 text-sentinel-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:text-sentinel-text-primary"
+                        aria-label="Copy message"
+                    >
+                       {isCopied ? <span className="text-xs px-1">Copied!</span> : <CopyIcon className="h-4 w-4" />}
+                    </button>
+                )}
+            </div>
+            {isUser && (
+                 <div className="w-8 h-8 rounded-full bg-sentinel-text-secondary flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    U
+                </div>
+            )}
         </div>
     );
 };
 
+interface ChatPanelProps {
+    session: Session;
+    chatInput: string;
+    onChatInputChange: (value: string) => void;
+    onSendMessage: (message: string) => void;
+    isLoading: boolean;
+}
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages, inputValue, onInputChange, onSendMessage, isLoading }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ session, chatInput, onChatInputChange, onSendMessage, isLoading }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
     };
 
-    useEffect(scrollToBottom, [messages]);
-
-    const handleSend = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSendMessage();
-    };
+    useEffect(() => {
+        scrollToBottom();
+    }, [session.messages, isLoading]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSend(e as unknown as React.FormEvent);
+            handleSendMessage();
         }
-    }
+    };
     
+    const handleSendMessage = () => {
+        if (chatInput.trim()) {
+            onSendMessage(chatInput);
+        }
+    };
+
     return (
-        <div className="flex flex-col h-full bg-sentinel-surface border border-sentinel-border rounded-lg overflow-hidden">
-            <div className="flex-grow p-4 overflow-y-auto">
-                <div className="flex flex-col gap-4">
-                    {messages.map((message) => (
-                        <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-xl px-4 py-2 rounded-lg ${message.role === 'user' ? 'bg-sentinel-primary text-white' : 'bg-sentinel-border/50 text-sentinel-text-primary'}`}>
-                                {message.role === 'user' ? (
-                                    <pre className="text-sm whitespace-pre-wrap font-sans">{message.content}</pre>
-                                ) : (
-                                    <AiMessageContent content={message.content} />
-                                )}
-                            </div>
+        <div className="bg-sentinel-surface border border-sentinel-border rounded-lg p-4 h-full flex flex-col">
+            <div ref={scrollContainerRef} className="flex flex-col flex-grow overflow-y-auto mb-4 pr-2 custom-scrollbar">
+                <div className="mt-auto">
+                    {session.messages.length === 0 && !isLoading && !chatInput.trim() && (
+                         <div className="flex items-center justify-center h-full text-center text-sentinel-text-secondary">
+                            <p>Start a conversation or select an attack template.</p>
                         </div>
+                    )}
+                    {session.messages.map((msg) => (
+                        <ChatMessage key={msg.id} message={msg} />
                     ))}
-                    {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
-                         <div className="flex justify-start">
-                             <div className="max-w-xl px-4 py-3 rounded-lg bg-sentinel-border/50 text-sentinel-text-primary">
+                    {isLoading && (
+                        <div className="flex items-start gap-3 my-4">
+                            <div className="w-8 h-8 rounded-full bg-sentinel-border flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                AI
+                            </div>
+                            <div className="max-w-[80%] p-3 rounded-lg bg-sentinel-bg">
                                 <ThinkingDots />
                             </div>
                         </div>
                     )}
-                    <div ref={messagesEndRef} />
                 </div>
-                 {messages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-sentinel-text-secondary">
-                        <p>Start a conversation to begin your red team analysis.</p>
-                        <p className="text-sm">Select an attack template or craft your own prompt.</p>
-                    </div>
-                )}
             </div>
-            <div className="p-4 border-t border-sentinel-border bg-sentinel-surface">
-                <form onSubmit={handleSend} className="flex items-end gap-2">
-                    <textarea
-                        value={inputValue}
-                        onChange={(e) => onInputChange(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Type your prompt here... (Shift+Enter for new line)"
-                        rows={2}
-                        className="flex-grow bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm resize-none focus:ring-sentinel-primary focus:border-sentinel-primary"
-                        disabled={isLoading}
-                    />
-                    <button
-                        type="submit"
-                        disabled={isLoading || !inputValue.trim()}
-                        className="flex-shrink-0 px-4 py-2 text-sm font-medium text-white bg-sentinel-primary rounded-md disabled:bg-sentinel-text-secondary disabled:cursor-not-allowed hover:bg-blue-500 transition-colors duration-200"
-                    >
-                        Send
-                    </button>
-                </form>
+            <div className="flex items-center gap-2">
+                <textarea
+                    value={chatInput}
+                    onChange={(e) => onChatInputChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your message or select an attack..."
+                    className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-4 py-3 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary resize-none"
+                    rows={2}
+                    disabled={isLoading}
+                />
+                <button
+                    onClick={handleSendMessage}
+                    disabled={isLoading || !chatInput.trim()}
+                    className="px-4 py-3 text-sm font-medium text-white bg-sentinel-primary rounded-md disabled:bg-sentinel-text-secondary disabled:cursor-not-allowed hover:bg-blue-500 transition-colors duration-200"
+                >
+                    Send
+                </button>
             </div>
         </div>
     );
