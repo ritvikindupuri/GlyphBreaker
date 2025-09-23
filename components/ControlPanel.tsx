@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { Session, ApiKeys, LlmConfig, ModelProvider, AttackTemplate } from '../types';
 import { MODEL_OPTIONS } from '../constants';
 import { BugIcon } from './icons/BugIcon';
+import { EyeIcon } from './icons/EyeIcon';
+import { EyeSlashedIcon } from './icons/EyeSlashedIcon';
 
 interface ControlPanelProps {
     session: Session;
@@ -40,6 +42,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onShowDebugger,
 }) => {
     const [selectedAttackName, setSelectedAttackName] = useState<string>('');
+    const [keyVisibility, setKeyVisibility] = useState({ openAI: false, ollama: false });
     const { llmConfig, systemPrompt } = session;
 
     const selectedAttackTemplate = attackTemplates.find(t => t.name === selectedAttackName) || null;
@@ -75,28 +78,48 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 return (
                     <div>
                         <label htmlFor="openai_key" className="block text-sm font-medium text-sentinel-text-secondary mb-1">OpenAI API Key</label>
-                        <input
-                            id="openai_key"
-                            type="password"
-                            value={apiKeys.openAI}
-                            onChange={(e) => onApiKeysChange({ ...apiKeys, openAI: e.target.value })}
-                            className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary"
-                            placeholder="sk-..."
-                        />
+                        <div className="relative">
+                            <input
+                                id="openai_key"
+                                type={keyVisibility.openAI ? 'text' : 'password'}
+                                value={apiKeys.openAI}
+                                onChange={(e) => onApiKeysChange({ ...apiKeys, openAI: e.target.value })}
+                                className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
+                                placeholder="sk-..."
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setKeyVisibility(prev => ({ ...prev, openAI: !prev.openAI }))}
+                                className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
+                                aria-label="Toggle API key visibility"
+                            >
+                                {keyVisibility.openAI ? <EyeSlashedIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                            </button>
+                        </div>
                     </div>
                 );
             case 'ollama':
                 return (
                      <div>
                         <label htmlFor="ollama_url" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Ollama Base URL</label>
-                        <input
-                            id="ollama_url"
-                            type="text"
-                            value={apiKeys.ollama}
-                            onChange={(e) => onApiKeysChange({ ...apiKeys, ollama: e.target.value })}
-                            className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary"
-                            placeholder="http://localhost:11434"
-                        />
+                        <div className="relative">
+                            <input
+                                id="ollama_url"
+                                type={keyVisibility.ollama ? 'text' : 'password'}
+                                value={apiKeys.ollama}
+                                onChange={(e) => onApiKeysChange({ ...apiKeys, ollama: e.target.value })}
+                                className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
+                                placeholder="http://localhost:11434"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setKeyVisibility(prev => ({ ...prev, ollama: !prev.ollama }))}
+                                className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
+                                aria-label="Toggle Base URL visibility"
+                            >
+                                {keyVisibility.ollama ? <EyeSlashedIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                            </button>
+                        </div>
                     </div>
                 );
             default: // Gemini uses process.env.API_KEY, so no input is needed.

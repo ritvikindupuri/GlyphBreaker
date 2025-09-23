@@ -32,17 +32,21 @@ const DefenseAnalysisPanel: React.FC<DefenseAnalysisPanelProps> = ({ messages, s
     const formattedAnalysis = useMemo(() => {
         if (!analysis) return null;
         
+        const cleanedAnalysis = analysis
+            .replace(/###|##|#/g, '')
+            .replace(/\*\*/g, '')
+            .replace(/---\n/g, '');
+
         const sections: { [key: string]: string[] } = {};
         let currentSection = '';
 
-        analysis
+        cleanedAnalysis
             .split('\n')
             .forEach(line => {
                 const trimmedLine = line.trim();
                 if (!trimmedLine) return;
 
-                // Proactively clean markdown artifacts from the start of the line
-                const cleanedLine = trimmedLine.replace(/^(#+\s*|\*\s*|-\s*)/, '');
+                const cleanedLine = trimmedLine.replace(/^[\*\-]\s*/, '');
 
                 if (cleanedLine.startsWith('SECTION:')) {
                     currentSection = cleanedLine.replace('SECTION:', '').trim();
@@ -51,8 +55,7 @@ const DefenseAnalysisPanel: React.FC<DefenseAnalysisPanelProps> = ({ messages, s
                     }
                 } else if (cleanedLine.startsWith('BULLET:')) {
                      if (currentSection && sections[currentSection]) {
-                        // Clean up any bolding from the content of the bullet itself
-                        const content = cleanedLine.replace('BULLET:', '').replace(/\*\*/g, '').trim();
+                        const content = cleanedLine.replace('BULLET:', '').trim();
                         sections[currentSection].push(content);
                      }
                 }
@@ -61,9 +64,9 @@ const DefenseAnalysisPanel: React.FC<DefenseAnalysisPanelProps> = ({ messages, s
         if (Object.keys(sections).length === 0) return null;
 
         return Object.entries(sections).map(([title, content]) => (
-            <div key={title} className="mb-4">
-                <h3 className="font-semibold text-sentinel-text-primary mb-2">{title}</h3>
-                <ul className="list-disc list-inside space-y-1 text-sentinel-text-secondary pl-2">
+            <div key={title} className="mb-5">
+                <h3 className="font-bold text-sentinel-text-primary mb-3 text-base">{title}</h3>
+                <ul className="list-disc list-inside space-y-2 text-sentinel-text-secondary pl-2">
                     {content.map((item, index) => {
                          const parts = item.split(':');
                          const key = parts[0];
@@ -72,7 +75,7 @@ const DefenseAnalysisPanel: React.FC<DefenseAnalysisPanelProps> = ({ messages, s
                          if (value) {
                              return (
                                  <li key={index}>
-                                     <span className="font-medium text-sentinel-text-primary/90">{key}:</span>
+                                     <span className="font-bold text-sentinel-text-primary">{key}:</span>
                                      {' '}{value}
                                  </li>
                              );

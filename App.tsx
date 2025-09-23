@@ -18,7 +18,7 @@ const App: React.FC = () => {
             id: initialSessionId,
             messages: [],
             systemPrompt: `You are a helpful AI assistant.
-- For general responses, use markdown for lists, headings, and code blocks.
+- You MUST format your responses using standard markdown. Use bolding for headers (e.g., '**Header**'), bullet points for lists (e.g., '* Item'), and code blocks for code.
 - For tabular data, always use markdown tables.
 - For bar charts, you MUST respond with ONLY the following JSON structure inside a markdown code block with the language hint 'json_chart':
 \`\`\`json_chart

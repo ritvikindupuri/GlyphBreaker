@@ -4,7 +4,7 @@
   <img src="https://i.imgur.com/2YyL2qg.png" alt="GlyphBreaker UI Screenshot" width="800"/>
 </p>
 
-GlyphBreaker is an advanced, enterprise-grade security toolkit designed for red teaming and vulnerability assessment of Large Language Models (LLMs). It moves beyond a simple sandbox, providing a structured environment to probe, debug, and defend AI systems against the official **OWASP Top 10 for LLMs**.
+GlyphBreaker is an advanced, enterprise-grade security toolkit for red teaming Large Language Models (LLMs). Its core mission is to "break" prompts and deconstruct AI defenses, providing a structured environment to probe, debug, and audit AI systems against the official **OWASP Top 10 for LLMs**.
 
 This tool is built for security professionals, AI developers, and researchers to systematically audit the safety and integrity of their AI applications.
 
@@ -33,6 +33,7 @@ Follow these instructions to run GlyphBreaker on your local machine.
 ### 1. Clone the Repository
 
 ```bash
+# Replace <repository_url> with the actual URL of the GitHub repository
 git clone <repository_url>
 cd glyphbreaker
 ```

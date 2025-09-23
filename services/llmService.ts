@@ -255,6 +255,7 @@ export async function* streamAnalysis(messages: Message[]): AsyncGenerator<strin
     const conversationText = messages.map(m => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n---\n\n');
 
     const prompt = `
+You are a machine-to-machine analysis service. Your ONLY output format is plain text using the keywords 'SECTION:' and 'BULLET:'. Any other format is a failure.
 Act as an expert AI Security Operations (AISecOps) analyst. Your task is to provide a concise, clear, and actionable threat analysis of the provided LLM conversation. Frame your analysis using concepts from deep learning security.
 
 **Input Conversation Log:**
@@ -299,6 +300,8 @@ BULLET: Behavioral Hardening: Suggest system prompt modifications or fine-tuning
 BULLET: Output Monitoring: Recommend a post-processing check to detect and block a compromised response.
 
 If no overt attack is detected, start with "SECTION: Executive Summary" and for "Threat Detected" state "No". Then, provide a "SECTION: Proactive Hardening" with "BULLET:" points for potential improvements.
+
+VERIFICATION: Scan your response before sending. Remove ALL markdown characters including #, *, -, and **.
     `;
     
     try {

@@ -11,9 +11,7 @@ interface ChatPanelProps {
     isLoading: boolean;
 }
 
-// Simple markdown to HTML conversion
 const toHtml = (text: string) => {
-    // Escape basic HTML characters
     let html = text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -21,30 +19,49 @@ const toHtml = (text: string) => {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-    // Handle code blocks
+    // Code blocks
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
         return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
     });
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-    // Handle tables
+    // Tables
     html = html.replace(/^\|(.+)\|\s*\n\|( *[-:]+[-| :]*)\|\s*\n((?:\|.*\|\s*\n?)*)/gm, (match) => {
         const rows = match.trim().split('\n');
         const header = `<thead><tr>${rows[0].slice(1, -1).split('|').map(h => `<th>${h.trim()}</th>`).join('')}</tr></thead>`;
         const body = `<tbody>${rows.slice(2).map(r => `<tr>${r.slice(1, -1).split('|').map(c => `<td>${c.trim()}</td>`).join('')}</tr>`).join('')}</tbody>`;
         return `<table>${header}${body}</table>`;
     });
-    
-    // Handle headings
+
+    // Headings
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
-    // Handle lists
-    html = html.replace(/^\s*[\-\*]\s(.*)/gim, '<ul><li>$1</li></ul>');
-    html = html.replace(/<\/ul>\n<ul>/gim, ''); // Merge consecutive lists
+    // Lists
+    html = html.replace(/((?:^\s*[\-\*]\s.*\n?)+)/gm, (match) => {
+        const items = match.trim().split('\n').map(item => `<li>${item.replace(/^\s*[\-\*]\s/, '').trim()}</li>`).join('');
+        return `<ul>${items}</ul>`;
+    });
+     html = html.replace(/((?:^\s*\d+\.\s.*\n?)+)/gm, (match) => {
+        const items = match.trim().split('\n').map(item => `<li>${item.replace(/^\s*\d+\.\s/, '').trim()}</li>`).join('');
+        return `<ol>${items}</ol>`;
+    });
+
+    // Paragraphs
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = `<p>${html}</p>`;
+    // Cleanup empty paragraphs and fix paragraphing around block elements
+    html = html.replace(/<p><(h[1-6]|ul|ol|pre|table)>/g, '<$1>');
+    html = html.replace(/<\/(h[1-6]|ul|ol|pre|table)><\/p>/g, '</$1>');
+    html = html.replace(/<p>\s*<\/p>/g, '');
 
     return html;
 };
+
 
 const CopyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
@@ -86,7 +103,7 @@ const AiMessageContent: React.FC<{ content: string }> = ({ content }) => {
                 <CopyIcon className="h-4 w-4" />
                 {copied && <span className="absolute -top-7 right-0 text-xs bg-sentinel-primary text-white px-2 py-0.5 rounded">Copied!</span>}
             </button>
-            <div className="prose prose-sm prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-table:my-3 prose-table:w-full prose-th:bg-sentinel-bg prose-th:p-2 prose-td:p-2 prose-tr:border-b prose-tr:border-sentinel-border prose-code:bg-sentinel-bg prose-code:px-1 prose-code:rounded prose-pre:bg-sentinel-bg prose-pre:p-3 prose-pre:rounded-md" dangerouslySetInnerHTML={{ __html: toHtml(content) }} />
+            <div className="prose prose-sm prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-table:my-3 prose-table:w-full prose-th:bg-sentinel-bg prose-th:p-2 prose-td:p-2 prose-tr:border-b prose-tr:border-sentinel-border prose-code:bg-sentinel-bg prose-code:px-1 prose-code:rounded prose-pre:bg-sentinel-bg prose-pre:p-3 prose-pre:rounded-md" dangerouslySetInnerHTML={{ __html: toHtml(content) }} />
         </div>
     );
 };
