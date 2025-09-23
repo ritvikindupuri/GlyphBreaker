@@ -1,8 +1,5 @@
 # GlyphBreaker: Advanced AI Red Teaming Toolkit
 
-<p align="center">
-  <img src="https://i.imgur.com/2YyL2qg.png" alt="GlyphBreaker UI Screenshot" width="800"/>
-</p>
 
 GlyphBreaker is an advanced, enterprise-grade security toolkit for red teaming Large Language Models (LLMs). Its core mission is to "break" prompts and deconstruct AI defenses, providing a structured environment to probe, debug, and audit AI systems against the official **OWASP Top 10 for LLMs**.
 
