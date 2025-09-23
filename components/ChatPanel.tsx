@@ -59,20 +59,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, inputValue, onInputChan
                 )}
             </div>
             <div className="p-4 border-t border-sentinel-border bg-sentinel-surface">
-                <form onSubmit={handleSend} className="relative">
+                <form onSubmit={handleSend} className="flex items-end gap-2">
                     <textarea
                         value={inputValue}
                         onChange={(e) => onInputChange(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Type your prompt here... (Shift+Enter for new line)"
                         rows={2}
-                        className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 pr-20 text-sm resize-none focus:ring-sentinel-primary focus:border-sentinel-primary"
+                        className="flex-grow bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm resize-none focus:ring-sentinel-primary focus:border-sentinel-primary"
                         disabled={isLoading}
                     />
                     <button
                         type="submit"
                         disabled={isLoading || !inputValue.trim()}
-                        className="absolute right-2 bottom-2 px-4 py-1 text-sm font-medium text-white bg-sentinel-primary rounded-md disabled:bg-sentinel-text-secondary disabled:cursor-not-allowed hover:bg-blue-500 transition-colors duration-200"
+                        className="flex-shrink-0 px-4 py-2 text-sm font-medium text-white bg-sentinel-primary rounded-md disabled:bg-sentinel-text-secondary disabled:cursor-not-allowed hover:bg-blue-500 transition-colors duration-200"
                     >
                         Send
                     </button>

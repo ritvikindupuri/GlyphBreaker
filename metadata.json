@@ -1,5 +1,5 @@
 {
-  "name": "NexusProbe",
-  "description": "An advanced AI security toolkit for red teaming. NexusProbe provides a suite of tools to probe, debug, and defend large language models against the OWASP Top 10 vulnerabilities.",
+  "name": "GlyphBreaker",
+  "description": "An advanced AI security toolkit for red teaming. GlyphBreaker provides a suite of tools to deconstruct, probe, and 'break' LLM prompts and defenses against the OWASP Top 10 vulnerabilities.",
   "requestFramePermissions": []
 }

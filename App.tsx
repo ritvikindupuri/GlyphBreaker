@@ -88,29 +88,32 @@ const App: React.FC = () => {
         updateCurrentSession({ messages: newMessages });
         setIsLoading(true);
 
-        const aiResponseMessage: Message = { id: uuidv4(), role: 'assistant', content: '' };
-        
-        try {
-            const stream = streamLlmResponse(
-                currentSession.llmConfig.provider,
-                [...newMessages],
-                apiKeys,
-                currentSession.systemPrompt,
-                { temperature: currentSession.llmConfig.temperature, topP: currentSession.llmConfig.topP, topK: currentSession.llmConfig.topK, model: currentSession.llmConfig.model },
-                isCacheEnabled
-            );
+        // Use a timeout to allow the UI to update and render the spinner before the API call might block the event loop.
+        setTimeout(async () => {
+            const aiResponseMessage: Message = { id: uuidv4(), role: 'assistant', content: '' };
+            
+            try {
+                const stream = streamLlmResponse(
+                    currentSession.llmConfig.provider,
+                    [...newMessages],
+                    apiKeys,
+                    currentSession.systemPrompt,
+                    { temperature: currentSession.llmConfig.temperature, topP: currentSession.llmConfig.topP, topK: currentSession.llmConfig.topK, model: currentSession.llmConfig.model },
+                    isCacheEnabled
+                );
 
-            for await (const chunk of stream) {
-                aiResponseMessage.content += chunk;
-                updateCurrentSession({ messages: [...newMessages, { ...aiResponseMessage }] });
+                for await (const chunk of stream) {
+                    aiResponseMessage.content += chunk;
+                    updateCurrentSession({ messages: [...newMessages, { ...aiResponseMessage }] });
+                }
+            } catch (error) {
+                console.error('LLM API Error:', error);
+                aiResponseMessage.content = `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`;
+                updateCurrentSession({ messages: [...newMessages, aiResponseMessage] });
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error('LLM API Error:', error);
-            aiResponseMessage.content = `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`;
-            updateCurrentSession({ messages: [...newMessages, aiResponseMessage] });
-        } finally {
-            setIsLoading(false);
-        }
+        }, 0);
     }, [currentSession, apiKeys, isLoading, updateCurrentSession, chatInput, isCacheEnabled]);
 
     const handleClearSession = useCallback(() => {

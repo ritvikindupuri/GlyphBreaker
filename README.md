@@ -1,7 +1,10 @@
-# NexusProbe: Advanced AI Red Teaming Toolkit
+# GlyphBreaker: Advanced AI Red Teaming Toolkit
 
+<p align="center">
+  <img src="https://i.imgur.com/2YyL2qg.png" alt="GlyphBreaker UI Screenshot" width="800"/>
+</p>
 
-NexusProbe is an advanced, enterprise-grade security toolkit designed for red teaming and vulnerability assessment of Large Language Models (LLMs). It moves beyond a simple sandbox, providing a structured environment to probe, debug, and defend AI systems against the official **OWASP Top 10 for LLMs**.
+GlyphBreaker is an advanced, enterprise-grade security toolkit designed for red teaming and vulnerability assessment of Large Language Models (LLMs). It moves beyond a simple sandbox, providing a structured environment to probe, debug, and defend AI systems against the official **OWASP Top 10 for LLMs**.
 
 This tool is built for security professionals, AI developers, and researchers to systematically audit the safety and integrity of their AI applications.
 
@@ -20,7 +23,7 @@ This tool is built for security professionals, AI developers, and researchers to
 
 ## Getting Started: Local Setup
 
-Follow these instructions to run NexusProbe on your local machine.
+Follow these instructions to run GlyphBreaker on your local machine.
 
 ### Prerequisites
 
@@ -31,7 +34,7 @@ Follow these instructions to run NexusProbe on your local machine.
 
 ```bash
 git clone <repository_url>
-cd nexusprobe
+cd glyphbreaker
 ```
 
 ### 2. Install Dependencies
@@ -42,7 +45,7 @@ npm install
 
 ### 3. Configure API Keys
 
-NexusProbe requires a Gemini API key to power its core features, especially the Defense Analysis.
+GlyphBreaker requires a Gemini API key to power its core features, especially the Defense Analysis.
 
 1.  **Create a `.env` file** in the root directory of the project.
 2.  **Add your Gemini API key** to this file. You can get one from the [Google AI Studio](https://aistudio.google.com/app/apikey).
@@ -68,7 +71,7 @@ The application should now be running on `http://localhost:3000` (or another por
 
 ---
 
-## How to Use NexusProbe
+## How to Use GlyphBreaker
 
 ### The Interface
 

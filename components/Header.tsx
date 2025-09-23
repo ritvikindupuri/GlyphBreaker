@@ -10,7 +10,7 @@ const Header: React.FC<HeaderProps> = ({ onShowHistory }) => {
         <header className="flex items-center justify-between p-4 bg-sentinel-surface/50 border-b border-sentinel-border shadow-md">
             <div className="flex items-center gap-3">
                 <Logo className="h-8 w-8 text-sentinel-primary" />
-                <h1 className="text-xl font-bold text-sentinel-text-primary tracking-wider">NexusProbe</h1>
+                <h1 className="text-xl font-bold text-sentinel-text-primary tracking-wider">GlyphBreaker</h1>
             </div>
             <button
                 onClick={onShowHistory}

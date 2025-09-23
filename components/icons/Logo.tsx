@@ -7,8 +7,9 @@ export const Logo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
         xmlns="http://www.w3.org/2000/svg"
         {...props}
     >
-        <path d="M12 21L15.7941 19L19.5882 21L17.6912 17L19.5882 13L15.7941 15L12 13L8.20588 15L4.41176 13L6.30882 17L4.41176 21L8.20588 19L12 21Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M12 13V3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M10 5L12 3L14 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 2V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 14V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M10 11L14 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
 );

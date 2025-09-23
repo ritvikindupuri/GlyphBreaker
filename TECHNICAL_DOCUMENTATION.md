@@ -1,10 +1,10 @@
-# NexusProbe: Technical Documentation
+# GlyphBreaker: Technical Documentation
 
-This document provides a deep technical dive into the architecture, components, and core logic of the NexusProbe application. It is intended for developers, security researchers, and contributors.
+This document provides a deep technical dive into the architecture, components, and core logic of the GlyphBreaker application. It is intended for developers, security researchers, and contributors.
 
 ## 1. Architecture Overview
 
-NexusProbe is a client-side single-page application (SPA) built with **React** and **TypeScript**. It communicates directly with various third-party LLM APIs from the user's browser.
+GlyphBreaker is a client-side single-page application (SPA) built with **React** and **TypeScript**. It communicates directly with various third-party LLM APIs from the user's browser.
 
 -   **Framework**: React (v19)
 -   **Language**: TypeScript
