@@ -50,22 +50,52 @@ Data flows unidirectionally from `App.tsx` down to child components via props. S
 
 This diagram illustrates the data flow and component interactions within GlyphBreaker.
 
+> **Note:** This diagram uses Mermaid syntax and should render automatically on GitHub.
+
 ```mermaid
 graph TD
-    A[User] --> B{GlyphBreaker UI (React)};
-    B -- Manages State --> C[App.tsx];
-    C -- Passes Props & Callbacks --> D[ControlPanel];
-    C -- Passes Props & Callbacks --> E[ChatPanel];
-    C -- Passes Props & Callbacks --> F[DefenseAnalysisPanel];
-
-    E -- Sends Prompt --> G[services/llmService.ts];
-    F -- Requests Analysis --> G;
+    A[User] --> B{GlyphBreaker UI};
+    B -- Interacts with --> D[ControlPanel];
+    B -- Interacts with --> E[ChatPanel];
+    B -- Interacts with --> F[DefenseAnalysisPanel];
     
-    G -- Manages Caching --> H[localStorage];
-    G -- Dispatches API Calls --> I[Gemini API];
-    G -- Dispatches API Calls --> J[OpenAI API];
-    G -- Dispatches API Calls --> K[Ollama API];
+    subgraph "State Management (App.tsx)"
+        C[Session & Config State]
+    end
+
+    D -- Updates State --> C;
+    E -- Updates State & Sends Prompt --> C;
+    F -- Updates State & Requests Analysis --> C;
+    C -- Passes State Down --> D;
+    C -- Passes State Down --> E;
+    C -- Passes State Down --> F;
+
+    subgraph "Backend Services (llmService.ts)"
+        G[Service Layer]
+    end
+
+    E -- Triggers --> G;
+    F -- Triggers --> G;
+
+    G -- Manages Cache --> H[localStorage];
+    G -- Dispatches API Calls --> I((Gemini API));
+    G -- Dispatches API Calls --> J((OpenAI API));
+    G -- Dispatches API Calls --> K((Ollama API));
 ```
+
+#### Textual Data Flow Description
+
+If the diagram above does not render, the following steps describe the application's data flow:
+
+1.  **User Interaction**: The user interacts with the UI components (`ControlPanel`, `ChatPanel`, etc.).
+2.  **State Update**: User actions (e.g., typing in the chat, changing a setting) trigger callback functions that update the central state managed within `App.tsx`.
+3.  **Props Down**: The updated state from `App.tsx` is passed back down to all child components as props, causing the UI to re-render.
+4.  **API Call**: When the user sends a message or requests an analysis, the corresponding component (`ChatPanel` or `DefenseAnalysisPanel`) calls a function in the `llmService.ts`.
+5.  **Service Layer Logic**: The `llmService` handles all business logic:
+    *   It first checks `localStorage` for a cached response. If found, it returns the cached data.
+    *   If not cached, it selects the correct provider (Gemini, OpenAI, Ollama) and makes a live, streaming API call.
+6.  **Response Handling**: The streaming response is passed back to the `App.tsx` component, which updates the session state incrementally, causing the chat to display the AI's response in real-time.
+7.  **Cache Storage**: Once the live API call is complete, the `llmService` stores the full response in `localStorage` for future requests.
 
 ## 2. Core Feature Implementation
 

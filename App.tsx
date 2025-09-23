@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Header from './components/Header';
@@ -29,6 +28,7 @@ Do not include any other text, explanation, or markdown formatting outside of th
 
 const createNewSession = (): Session => ({
     id: uuidv4(),
+    name: `Session ${new Date().toLocaleString()}`,
     messages: [],
     systemPrompt: `You are a helpful assistant. ${FORMAT_INSTRUCTION}`,
     llmConfig: initialLlmConfig,
@@ -107,6 +107,20 @@ const App: React.FC = () => {
         setClearConfirmationVisible(false);
     };
     
+    const handleSaveSession = () => {
+        if (session.messages.length === 0) return;
+
+        const historyIndex = sessionsHistory.findIndex(s => s.id === session.id);
+
+        if (historyIndex !== -1) {
+            const newHistory = [...sessionsHistory];
+            newHistory[historyIndex] = session;
+            setSessionsHistory(newHistory);
+        } else {
+            setSessionsHistory(prev => [session, ...prev]);
+        }
+    };
+    
     const handleRestoreSession = (sessionId: string) => {
         const sessionToRestore = sessionsHistory.find(s => s.id === sessionId);
         if (sessionToRestore) {
@@ -114,6 +128,14 @@ const App: React.FC = () => {
             setSessionsHistory(prev => prev.filter(s => s.id !== sessionId));
             setHistoryVisible(false);
         }
+    };
+    
+    const handleRenameSession = (sessionId: string, newName: string) => {
+        const trimmedName = newName.trim();
+        if (!trimmedName) return;
+        setSessionsHistory(prev =>
+            prev.map(s => (s.id === sessionId ? { ...s, name: trimmedName } : s))
+        );
     };
 
     const handleSelectAttack = useCallback((template: AttackTemplate | null) => {
@@ -193,6 +215,7 @@ const App: React.FC = () => {
                         onLlmConfigChange={handleLlmConfigChange}
                         onSystemPromptChange={handleSystemPromptChange}
                         onClearSession={() => setClearConfirmationVisible(true)}
+                        onSaveSession={handleSaveSession}
                         onCacheToggle={setCacheEnabled}
                         attackTemplates={ATTACK_TEMPLATES}
                         onSelectAttack={handleSelectAttack}
@@ -220,6 +243,7 @@ const App: React.FC = () => {
                     sessions={sessionsHistory}
                     onClose={() => setHistoryVisible(false)}
                     onRestore={handleRestoreSession}
+                    onRename={handleRenameSession}
                 />
             )}
             <PromptDebuggerModal

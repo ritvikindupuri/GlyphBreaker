@@ -1,9 +1,9 @@
+
 export type ModelProvider = 'gemini' | 'openai' | 'ollama';
 
-export interface Message {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
+export interface ApiKeys {
+    openAI: string;
+    ollama: string;
 }
 
 export interface LlmConfig {
@@ -14,26 +14,23 @@ export interface LlmConfig {
     topK: number;
 }
 
+export interface Message {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+}
+
 export interface Session {
     id: string;
+    name: string;
     messages: Message[];
     systemPrompt: string;
     llmConfig: LlmConfig;
 }
 
-export interface ApiKeys {
-    openAI: string;
-    ollama: string; // Ollama base URL, e.g., http://localhost:11434
-}
-
-export interface SuggestedSystemPrompt {
-    name: string;
-    prompt: string;
-}
-
 export interface AttackTemplate {
     name: string;
     description: string;
-    suggestedSystemPrompts: SuggestedSystemPrompt[];
     userPrompt: string;
+    suggestedSystemPrompts: { name: string; prompt: string }[];
 }

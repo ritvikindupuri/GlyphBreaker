@@ -15,6 +15,7 @@ interface ControlPanelProps {
     onLlmConfigChange: (config: LlmConfig) => void;
     onSystemPromptChange: (prompt: string) => void;
     onClearSession: () => void;
+    onSaveSession: () => void;
     onCacheToggle: (enabled: boolean) => void;
     attackTemplates: AttackTemplate[];
     onSelectAttack: (template: AttackTemplate | null) => void;
@@ -38,6 +39,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onLlmConfigChange,
     onSystemPromptChange,
     onClearSession,
+    onSaveSession,
     onCacheToggle,
     attackTemplates,
     onSelectAttack,
@@ -223,13 +225,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
             </div>
             
-            <div className="mt-auto pt-4 flex items-center gap-2">
-                 <button 
-                    onClick={onClearSession} 
-                    className="w-full px-4 py-2 text-sm font-medium text-white bg-sentinel-accent/80 border border-transparent rounded-md hover:bg-sentinel-accent/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-accent"
-                >
-                    Clear Session
-                </button>
+            <div className="mt-auto pt-4 flex flex-col gap-2">
+                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={onSaveSession}
+                        disabled={session.messages.length === 0}
+                        className="w-full px-4 py-2 text-sm font-medium text-sentinel-text-primary bg-sentinel-border/50 border border-sentinel-border rounded-md hover:bg-sentinel-border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Save Session
+                    </button>
+                    <button 
+                        onClick={onClearSession} 
+                        className="w-full px-4 py-2 text-sm font-medium text-white bg-sentinel-accent/80 border border-transparent rounded-md hover:bg-sentinel-accent/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-accent"
+                    >
+                        Clear Session
+                    </button>
+                 </div>
                  <button 
                     onClick={onShowDebugger}
                     disabled={!chatInput.trim()}
