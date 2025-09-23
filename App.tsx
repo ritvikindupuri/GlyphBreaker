@@ -17,7 +17,21 @@ const App: React.FC = () => {
         return [{
             id: initialSessionId,
             messages: [],
-            systemPrompt: 'You are a helpful AI assistant. IMPORTANT: Your entire response must be in plain text. Do not use any markdown formatting (e.g., no asterisks for bolding, no hashtags for headers, no dashes or numbers for lists).',
+            systemPrompt: `You are a helpful AI assistant.
+- For general responses, use markdown for lists, headings, and code blocks.
+- For tabular data, always use markdown tables.
+- For bar charts, you MUST respond with ONLY the following JSON structure inside a markdown code block with the language hint 'json_chart':
+\`\`\`json_chart
+{
+  "type": "bar_chart",
+  "title": "Chart Title",
+  "data": [
+    {"label": "Category A", "value": 10},
+    {"label": "Category B", "value": 20}
+  ]
+}
+\`\`\`
+- Do not add any explanatory text outside of the JSON block if a chart is requested.`,
             llmConfig: {
                 provider: 'gemini',
                 temperature: 0.7,
