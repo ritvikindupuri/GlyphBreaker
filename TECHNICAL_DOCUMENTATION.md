@@ -38,14 +38,34 @@ GlyphBreaker is a client-side single-page application (SPA) built with **React**
 
 The primary application state is managed within the `App.tsx` component using React Hooks. This centralized approach keeps data flow predictable.
 
--   `sessions`: An array of `Session` objects. Each session contains its own messages, system prompt, and LLM configuration.
--   `currentSessionId`: A string that tracks the currently active session.
--   `deletedSessions`: An array used to hold sessions cleared by the user, allowing them to be restored from the "Session History" modal.
+-   `session`: The currently active `Session` object, containing messages, system prompt, and LLM configuration.
+-   `sessionsHistory`: An array used to hold sessions cleared by the user, allowing them to be restored from the "Session History" modal.
 -   `apiKeys`: An in-memory state object to hold OpenAI and Ollama credentials for the duration of the browser session. **It is intentionally not persisted.**
 -   `isLoading`: A boolean flag to manage the loading state of the chat, preventing user input while the AI is responding.
 -   `isCacheEnabled`: A boolean to toggle the response caching feature.
 
 Data flows unidirectionally from `App.tsx` down to child components via props. State modifications are handled by callback functions passed down from `App.tsx`.
+
+### 1.3. Architecture Diagram
+
+This diagram illustrates the data flow and component interactions within GlyphBreaker.
+
+```mermaid
+graph TD
+    A[User] --> B{GlyphBreaker UI (React)};
+    B -- Manages State --> C[App.tsx];
+    C -- Passes Props & Callbacks --> D[ControlPanel];
+    C -- Passes Props & Callbacks --> E[ChatPanel];
+    C -- Passes Props & Callbacks --> F[DefenseAnalysisPanel];
+
+    E -- Sends Prompt --> G[services/llmService.ts];
+    F -- Requests Analysis --> G;
+    
+    G -- Manages Caching --> H[localStorage];
+    G -- Dispatches API Calls --> I[Gemini API];
+    G -- Dispatches API Calls --> J[OpenAI API];
+    G -- Dispatches API Calls --> K[Ollama API];
+```
 
 ## 2. Core Feature Implementation
 
@@ -66,7 +86,7 @@ The `getProviderStream` async generator function acts as a factory. Based on the
 
 The `streamLlmResponse` function orchestrates the caching logic.
 
-1.  **Cache Key Generation**: `generateCacheKey` creates a unique SHA-256 hash from a JSON string representing the complete request context (provider, model, system prompt, conversation history, and all LLM parameters). This ensures that any change, no matter how small, results in a new cache entry.
+1.  **Cache Key Generation**: `generateCacheKey` creates a unique key from a JSON string representing the complete request context (provider, model, system prompt, conversation history, and all LLM parameters).
 2.  **Cache Retrieval**: Before making an API call, it checks `localStorage` for an entry with this key.
 3.  **Simulated Streaming**: If a cache hit occurs, the stored response is split into chunks and yielded with a minimal `setTimeout` delay. This preserves the "typing" UI effect for a consistent user experience while being significantly faster than a real API call.
 4.  **Cache Storage**: If no cached response is found, a live API call is made. The full response is accumulated in a variable as it streams. Once the stream is complete, the entire response is stored in `localStorage` using the generated key.
