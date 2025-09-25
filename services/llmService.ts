@@ -7,6 +7,28 @@ const ai = process.env.API_KEY ? new GoogleGenAI({ apiKey: process.env.API_KEY }
 
 type LlmConfig = { temperature: number; topP: number; topK: number; model: string; };
 
+export async function checkOllamaStatus(baseUrl: string): Promise<{ ok: boolean; message: string }> {
+    if (!baseUrl || !baseUrl.startsWith('http')) {
+        return { ok: false, message: 'Invalid URL. It must start with http:// or https://' };
+    }
+    try {
+        // The /api/tags endpoint is a lightweight GET request that is a good
+        // indicator of server health and proper CORS configuration.
+        const response = await fetch(`${baseUrl}/api/tags`, { method: 'GET' });
+        if (response.ok) {
+            return { ok: true, message: 'Connection to Ollama successful.' };
+        }
+        // If status is not ok, but we got a response, it means the server is reachable but there's an issue.
+        return { ok: false, message: `Server responded with status ${response.status}. Check the URL.` };
+    } catch (error) {
+        // This catch block usually handles network errors, including CORS rejections.
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            return { ok: false, message: 'Connection failed. This is likely a CORS issue. Click "Connection Help" for instructions.' };
+        }
+        return { ok: false, message: `An unknown network error occurred: ${error instanceof Error ? error.message : 'Unknown'}` };
+    }
+}
+
 const generateCacheKey = (
     provider: ModelProvider,
     messages: Message[],
@@ -141,21 +163,30 @@ async function* streamOpenAI(
     if (!apiKey) {
         throw new Error("OpenAI API key is missing.");
     }
+    
+    let response;
+    try {
+        response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.model,
+                messages: [{ role: 'system', content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+                temperature: config.temperature,
+                top_p: config.topP,
+                stream: true,
+            }),
+        });
+    } catch (error) {
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error('Connection to OpenAI failed. Please check your internet connection and ensure no browser extensions (like ad-blockers) or firewalls are blocking the request.');
+        }
+        throw error;
+    }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: config.model,
-            messages: [{ role: 'system', content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
-            temperature: config.temperature,
-            top_p: config.topP,
-            stream: true,
-        }),
-    });
 
     if (!response.ok) {
         const errorData = await response.json();
@@ -198,20 +229,29 @@ async function* streamOllama(
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) return;
 
-    const response = await fetch(`${baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: config.model,
-            messages: [{ role: 'system', content: systemPrompt }, ...messages],
-            stream: true,
-            options: {
-                temperature: config.temperature,
-                top_p: config.topP,
-                top_k: config.topK,
-            },
-        }),
-    });
+    let response;
+    try {
+        response = await fetch(`${baseUrl}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: config.model,
+                messages: [{ role: 'system', content: systemPrompt }, ...messages],
+                stream: true,
+                options: {
+                    temperature: config.temperature,
+                    top_p: config.topP,
+                    top_k: config.topK,
+                },
+            }),
+        });
+    } catch (error) {
+         if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error(`Connection to Ollama at ${baseUrl} failed. This is often a CORS issue. Please ensure your Ollama server is running and configured to accept requests from this origin. See the Ollama documentation for setting the OLLAMA_ORIGINS environment variable.`);
+        }
+        throw error;
+    }
+
 
      if (!response.ok) {
         const errorText = await response.text();

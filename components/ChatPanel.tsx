@@ -138,6 +138,12 @@ interface ChatPanelProps {
     isLoading: boolean;
 }
 
+const sanitizeInput = (input: string): string => {
+    // A simple regex to remove anything that looks like an HTML tag.
+    // This provides a layer of defense against accidental or malicious script injection.
+    return input.replace(/<[^>]*>/g, '');
+};
+
 const ChatPanel: React.FC<ChatPanelProps> = ({ session, chatInput, onChatInputChange, onSendMessage, isLoading }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -152,16 +158,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ session, chatInput, onChatInputCh
         scrollToBottom();
     }, [session.messages, isLoading]);
 
+    const handleSendMessage = () => {
+        const trimmedInput = chatInput.trim();
+        if (trimmedInput) {
+            onSendMessage(sanitizeInput(trimmedInput));
+        }
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage();
-        }
-    };
-    
-    const handleSendMessage = () => {
-        if (chatInput.trim()) {
-            onSendMessage(chatInput);
         }
     };
 

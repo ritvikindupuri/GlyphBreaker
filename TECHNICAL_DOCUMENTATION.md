@@ -146,3 +146,20 @@ This component provides critical insight into the prompt construction process.
 
 -   **Keyword Highlighting**: The `highlightKeywords` function uses a regular expression constructed from `PROMPT_INJECTION_KEYWORDS` to find and wrap potential attack vectors in a visually distinct `<span>`. The `\b` word boundary assertions ensure that only whole words are matched.
 -   **State Mutation via Callback**: The "Apply as System Prompt" feature does not modify the state directly. Instead, it calls the `onApply` function (passed down from `App.tsx`) with the new, combined prompt string. This adheres to React's unidirectional data flow principles, allowing the parent component to manage its own state.
+
+### 2.3. Custom Attack Templates & Persistence
+
+GlyphBreaker allows users to extend the built-in OWASP attack library with their own custom templates. This feature is architected for persistence and seamless integration.
+
+-   **State Management**: Custom templates are stored in the `customAttackTemplates` state array within the main `App.tsx` component.
+-   **Persistence**: To ensure custom templates are not lost between sessions, the application leverages `localStorage`. A `useEffect` hook in `App.tsx` monitors the `customAttackTemplates` state. Whenever this state changes (a template is added, edited, or deleted), the hook serializes the entire array into a JSON string and saves it to `localStorage` under the key `glyph_customTemplates`. On application startup, another `useEffect` hook reads from this key to rehydrate the state.
+-   **Unique Identification**: When a new template is created, it is assigned a unique identifier using the `uuid` library. This `id` is crucial for distinguishing between templates and enabling reliable update and delete operations within the state array.
+-   **UI Integration**: The `ControlPanel` component receives both the static `ATTACK_TEMPLATES` and the dynamic `customAttackTemplates` as props. It uses an `<optgroup>` HTML element to clearly separate the built-in templates from the user-created ones in the dropdown menu, providing an organized and intuitive user experience.
+
+### 2.4. Secure Input Handling
+
+As a security-focused tool, GlyphBreaker implements basic input sanitization as a defense-in-depth measure.
+
+-   **Implementation**: The sanitization logic is located within the `ChatPanel.tsx` component. Before the `onSendMessage` callback is invoked, the user's input from the `textarea` is processed.
+-   **Mechanism**: A simple but effective regular expression, `/<[^>]*>/g`, is used to strip out any characters that form HTML tags. This prevents basic HTML or `<script>` tag injection.
+-   **Design Rationale**: While React inherently protects against XSS in most rendering scenarios, sanitizing the input at the source provides an additional layer of security. It ensures that the data sent to the LLM APIs and stored in the session state is free from potentially executable tags, mitigating risks in downstream systems or if the data were ever to be rendered in a non-React context. This preemptive sanitization is a security best practice.

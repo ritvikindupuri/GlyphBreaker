@@ -29,6 +29,7 @@ export interface Session {
 }
 
 export interface AttackTemplate {
+    id?: string; // Used to uniquely identify user-created templates
     name: string;
     description: string;
     userPrompt: string;

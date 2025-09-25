@@ -4,6 +4,10 @@ import { MODEL_OPTIONS } from '../constants';
 import { BugIcon } from './icons/BugIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { EyeSlashedIcon } from './icons/EyeSlashedIcon';
+import { checkOllamaStatus } from '../services/llmService';
+import { Spinner } from './icons/Spinner';
+import OllamaCorsModal from './OllamaCorsModal';
+import CustomTemplateManagerModal from './CustomTemplateManagerModal';
 
 interface ControlPanelProps {
     session: Session;
@@ -18,8 +22,11 @@ interface ControlPanelProps {
     onSaveSession: () => void;
     onCacheToggle: (enabled: boolean) => void;
     attackTemplates: AttackTemplate[];
+    customAttackTemplates: AttackTemplate[];
     onSelectAttack: (template: AttackTemplate | null) => void;
     onShowDebugger: () => void;
+    onSaveCustomTemplate: (template: AttackTemplate) => void;
+    onDeleteCustomTemplate: (templateId: string) => void;
 }
 
 const InfoIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -42,11 +49,41 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onSaveSession,
     onCacheToggle,
     attackTemplates,
+    customAttackTemplates,
     onSelectAttack,
     onShowDebugger,
+    onSaveCustomTemplate,
+    onDeleteCustomTemplate,
 }) => {
     const [keyVisibility, setKeyVisibility] = useState({ openAI: false, ollama: false });
+    const [ollamaStatus, setOllamaStatus] = useState<{
+        checking: boolean;
+        ok: boolean | null;
+        message: string;
+    }>({ checking: false, ok: null, message: '' });
+    const [isCorsModalVisible, setCorsModalVisible] = useState(false);
+    const [isTemplateManagerVisible, setTemplateManagerVisible] = useState(false);
     const { llmConfig, systemPrompt } = session;
+
+    useEffect(() => {
+        if (llmConfig.provider !== 'ollama' || !apiKeys.ollama || !apiKeys.ollama.startsWith('http')) {
+            setOllamaStatus({ checking: false, ok: null, message: '' });
+            return;
+        }
+
+        const handler = setTimeout(() => {
+            const check = async () => {
+                setOllamaStatus({ checking: true, ok: null, message: 'Checking...' });
+                const status = await checkOllamaStatus(apiKeys.ollama.trim());
+                setOllamaStatus({ checking: false, ok: status.ok, message: status.message });
+            };
+            check();
+        }, 500); // 500ms debounce
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [apiKeys.ollama, llmConfig.provider]);
 
     const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newProvider = e.target.value as ModelProvider;
@@ -60,7 +97,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
     const handleAttackChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const templateName = e.target.value;
-        const template = attackTemplates.find(t => t.name === templateName) || null;
+        const allTemplates = [...attackTemplates, ...customAttackTemplates];
+        const template = allTemplates.find(t => t.name === templateName) || null;
         onSelectAttack(template);
     };
     
@@ -97,24 +135,42 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             case 'ollama':
                 return (
                      <div>
-                        <label htmlFor="ollama_url" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Ollama Base URL</label>
-                        <div className="relative">
-                            <input
-                                id="ollama_url"
-                                type={keyVisibility.ollama ? 'text' : 'password'}
-                                value={apiKeys.ollama}
-                                onChange={(e) => onApiKeysChange({ ...apiKeys, ollama: e.target.value })}
-                                className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
-                                placeholder="http://localhost:11434"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setKeyVisibility(prev => ({ ...prev, ollama: !prev.ollama }))}
-                                className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
-                                aria-label="Toggle Base URL visibility"
-                            >
-                                {keyVisibility.ollama ? <EyeSlashedIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                        <div className="flex items-center justify-between mb-1">
+                            <label htmlFor="ollama_url" className="block text-sm font-medium text-sentinel-text-secondary">Ollama Base URL</label>
+                             <button onClick={() => setCorsModalVisible(true)} className="text-xs text-sentinel-primary hover:underline focus:outline-none">
+                                Connection Help
                             </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="relative w-full">
+                                <input
+                                    id="ollama_url"
+                                    type={keyVisibility.ollama ? 'text' : 'password'}
+                                    value={apiKeys.ollama}
+                                    onChange={(e) => onApiKeysChange({ ...apiKeys, ollama: e.target.value })}
+                                    className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
+                                    placeholder="http://localhost:11434"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setKeyVisibility(prev => ({ ...prev, ollama: !prev.ollama }))}
+                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
+                                    aria-label="Toggle Base URL visibility"
+                                >
+                                    {keyVisibility.ollama ? <EyeSlashedIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                                </button>
+                            </div>
+                            <div className="relative group flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                                {ollamaStatus.checking && <Spinner className="h-5 w-5 text-sentinel-text-secondary" />}
+                                {!ollamaStatus.checking && ollamaStatus.ok !== null && (
+                                    <div className={`h-3 w-3 rounded-full transition-colors ${ollamaStatus.ok ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                )}
+                                {ollamaStatus.message && !ollamaStatus.checking && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 text-xs text-center bg-sentinel-bg border border-sentinel-border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                        {ollamaStatus.message}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 );
@@ -124,7 +180,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     };
     
     return (
-        <div className="bg-sentinel-surface border border-sentinel-border rounded-lg p-4 h-full flex flex-col gap-6 overflow-y-auto">
+        <div className="bg-sentinel-surface border border-sentinel-border rounded-lg p-4 h-full flex flex-col gap-6 overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center border-b border-sentinel-border pb-2">
                 <h2 className="text-lg font-semibold text-sentinel-text-primary">Configuration</h2>
                 <div className="flex items-center space-x-2">
@@ -161,9 +217,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
              <div className="border border-sentinel-border rounded-lg p-3 space-y-3 bg-sentinel-bg/30">
                 <h3 className="text-md font-semibold text-sentinel-text-primary">API Keys</h3>
                 {renderApiKeyInput(llmConfig.provider)}
-                {(llmConfig.provider === 'openai' || llmConfig.provider === 'ollama') && 
-                    <p className="text-xs text-sentinel-text-secondary">Credentials are stored in-memory for the session and are not saved.</p>
-                }
             </div>
 
             <div className="flex flex-col gap-4">
@@ -182,12 +235,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                 )}
                 <div>
-                    <label htmlFor="attack_template" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Attack Templates</label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label htmlFor="attack_template" className="block text-sm font-medium text-sentinel-text-secondary">Attack Templates</label>
+                        <button onClick={() => setTemplateManagerVisible(true)} className="text-xs text-sentinel-primary hover:underline focus:outline-none">Manage</button>
+                    </div>
                     <select id="attack_template" value={currentAttack?.name || ''} onChange={handleAttackChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
                         <option value="">Select an attack...</option>
-                        {attackTemplates.map(t => (
-                            <option key={t.name} value={t.name}>{t.name}</option>
-                        ))}
+                        <optgroup label="OWASP Top 10">
+                            {attackTemplates.map(t => (
+                                <option key={t.name} value={t.name}>{t.name}</option>
+                            ))}
+                        </optgroup>
+                         {customAttackTemplates.length > 0 && (
+                            <optgroup label="Custom Templates">
+                                {customAttackTemplates.map(t => (
+                                    <option key={t.id} value={t.name}>{t.name}</option>
+                                ))}
+                            </optgroup>
+                         )}
                     </select>
                 </div>
                  {currentAttack && (
@@ -197,7 +262,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                 )}
 
-                {currentAttack && (
+                {currentAttack && currentAttack.suggestedSystemPrompts.length > 0 && (
                     <div>
                         <label htmlFor="system_prompt_template" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Suggested System Prompts</label>
                         <select
@@ -250,6 +315,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     Debug Prompt
                 </button>
             </div>
+             {isCorsModalVisible && <OllamaCorsModal onClose={() => setCorsModalVisible(false)} />}
+             {isTemplateManagerVisible && (
+                <CustomTemplateManagerModal
+                    isOpen={isTemplateManagerVisible}
+                    onClose={() => setTemplateManagerVisible(false)}
+                    templates={customAttackTemplates}
+                    onSave={onSaveCustomTemplate}
+                    onDelete={onDeleteCustomTemplate}
+                />
+             )}
         </div>
     );
 };

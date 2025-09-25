@@ -23,11 +23,18 @@
               'dot-pulse': {
                 '0%, 100%': { opacity: '0.2', transform: 'scale(0.8)' },
                 '50%': { opacity: '1', transform: 'scale(1.2)' },
+              },
+              'fade-in-out-text': {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '20%': { opacity: '1', transform: 'translateY(0)' },
+                '80%': { opacity: '1', transform: 'translateY(0)' },
+                '100%': { opacity: '0', transform: 'translateY(-10px)' },
               }
             },
             animation: {
               'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
               'dot-pulse': 'dot-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'fade-in-out-text': 'fade-in-out-text 2.5s ease-in-out forwards',
             }
           }
         }

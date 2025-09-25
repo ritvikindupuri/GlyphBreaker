@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
@@ -38,6 +38,7 @@ const App: React.FC = () => {
     // State initialization
     const [session, setSession] = useState<Session>(createNewSession());
     const [sessionsHistory, setSessionsHistory] = useState<Session[]>([]);
+    const [customAttackTemplates, setCustomAttackTemplates] = useState<AttackTemplate[]>([]);
     const [apiKeys, setApiKeys] = useState<ApiKeys>({ openAI: '', ollama: '' });
     const [chatInput, setChatInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -60,6 +61,10 @@ const App: React.FC = () => {
             
             const savedHistory = localStorage.getItem('glyph_sessionsHistory');
             if(savedHistory) setSessionsHistory(JSON.parse(savedHistory));
+
+            const savedTemplates = localStorage.getItem('glyph_customTemplates');
+            if (savedTemplates) setCustomAttackTemplates(JSON.parse(savedTemplates));
+
         } catch (error) {
             console.error("Failed to load state from localStorage", error);
         }
@@ -89,6 +94,15 @@ const App: React.FC = () => {
             console.error("Failed to save session history to localStorage", error);
         }
     }, [sessionsHistory]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('glyph_customTemplates', JSON.stringify(customAttackTemplates));
+        } catch (error) {
+            console.error("Failed to save custom templates to localStorage", error);
+        }
+    }, [customAttackTemplates]);
+
 
     const handleLlmConfigChange = (newConfig: LlmConfig) => {
         setSession(prev => ({ ...prev, llmConfig: newConfig }));
@@ -155,6 +169,28 @@ const App: React.FC = () => {
         setDebuggerVisible(false);
     };
 
+    const handleSaveCustomTemplate = (template: AttackTemplate) => {
+        setCustomAttackTemplates(prev => {
+            // It's a new template if it doesn't have an ID
+            if (!template.id) {
+                 return [...prev, { ...template, id: uuidv4() }];
+            }
+            // Otherwise, it's an update
+            const index = prev.findIndex(t => t.id === template.id);
+            if (index !== -1) {
+                const newTemplates = [...prev];
+                newTemplates[index] = template;
+                return newTemplates;
+            }
+            // Failsafe in case of weird state
+            return [...prev, { ...template, id: template.id || uuidv4() }];
+        });
+    };
+
+    const handleDeleteCustomTemplate = (templateId: string) => {
+        setCustomAttackTemplates(prev => prev.filter(t => t.id !== templateId));
+    };
+
 
     const handleSendMessage = async (messageContent: string) => {
         if (!messageContent.trim() || isLoading) return;
@@ -218,8 +254,11 @@ const App: React.FC = () => {
                         onSaveSession={handleSaveSession}
                         onCacheToggle={setCacheEnabled}
                         attackTemplates={ATTACK_TEMPLATES}
+                        customAttackTemplates={customAttackTemplates}
                         onSelectAttack={handleSelectAttack}
                         onShowDebugger={() => setDebuggerVisible(true)}
+                        onSaveCustomTemplate={handleSaveCustomTemplate}
+                        onDeleteCustomTemplate={handleDeleteCustomTemplate}
                     />
                 </div>
                 <div className="md:col-span-6 h-full flex flex-col min-h-0">

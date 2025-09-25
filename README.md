@@ -8,12 +8,14 @@ This tool is built for security professionals, AI developers, and researchers to
 
 ## Key Features
 
-- **OWASP Top 10 Attack Library**: A curated set of realistic, subtle attack templates, each mapping directly to an official OWASP Top 10 vulnerability for LLMs.
-- **Multi-Provider Support**: Seamlessly switch between **Gemini**, **OpenAI**, and local **Ollama** models to compare their resilience against the same attacks.
-- **Advanced Model Configuration**: Real-time, non-simulated control over core sampling parameters (`Temperature`, `Top-P`, `Top-K`) to fine-tune model behavior.
-- **Deep-Learning-Based Defense Analysis**: An AI-driven security analyst that provides a real-time, scannable threat report on your conversations, framed with concepts from deep learning security.
-- **Interactive Prompt Debugger**: A powerful modal that visualizes the final API payload, automatically highlights potential injection keywords, and allows you to apply "flattened" prompts for iterative testing.
-- **Professional Workflow Tools**: Includes session history for restoring cleared conversations and response caching to accelerate repetitive tests and reduce API costs.
+-   **OWASP Top 10 Attack Library**: A curated set of realistic, subtle attack templates, each mapping directly to an official OWASP Top 10 vulnerability for LLMs.
+-   **Custom Attack Templates**: Define, save, and reuse your own attack scenarios directly within the UI to tailor testing to your specific needs.
+-   **Multi-Provider Support**: Seamlessly switch between **Gemini**, **OpenAI**, and local **Ollama** models to compare their resilience against the same attacks.
+-   **Advanced Model Configuration**: Real-time control over core sampling parameters (`Temperature`, `Top-P`, `Top-K`) to fine-tune model behavior.
+-   **Deep-Learning-Based Defense Analysis**: An AI-driven security analyst that provides a real-time threat report on your conversations, framed with concepts from deep learning security.
+-   **Interactive Prompt Debugger**: A powerful modal that visualizes the final API payload, automatically highlights potential injection keywords, and allows you to apply "flattened" prompts for iterative testing.
+-   **Secure Input Handling**: User prompts are automatically sanitized to strip potential HTML and script tags before processing, providing a crucial layer of defense-in-depth.
+-   **Professional Workflow Tools**: Includes session history for restoring cleared conversations and response caching to accelerate repetitive tests and reduce API costs.
 
 ---
 
@@ -23,29 +25,24 @@ Follow these instructions to run GlyphBreaker on your local machine.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or later)
-- [npm](https://www.npmjs.com/) (usually comes with Node.js)
+-   [Node.js](https://nodejs.org/) (v18 or later recommended)
 
 ### 1. Clone the Repository
 
 ```bash
-# Replace <repository_url> with the actual URL of the GitHub repository
-git clone <repository_url>
+git clone https://github.com/google/glyphbreaker.git
 cd glyphbreaker
 ```
 
-### 2. Install Dependencies
+### 2. Configure API Keys
 
-```bash
-npm install
-```
+GlyphBreaker requires a Gemini API key for its core features, including the Defense Analysis panel.
 
-### 3. Configure API Keys
-
-GlyphBreaker requires a Gemini API key to power its core features, especially the Defense Analysis.
-
-1.  **Create a `.env` file** in the root directory of the project.
-2.  **Add your Gemini API key** to this file. You can get one from the [Google AI Studio](https://aistudio.google.com/app/apikey).
+1.  **Create a `.env` file** in the root directory of the project. You can copy the example file:
+    ```bash
+    cp .env.example .env
+    ```
+2.  **Add your Gemini API key** to this new `.env` file. You can get one from the [Google AI Studio](https://aistudio.google.com/app/apikey).
 
 Your `.env` file should look like this:
 
@@ -55,47 +52,113 @@ API_KEY=YOUR_GEMINI_API_KEY_HERE
 ```
 
 **Important:**
-- The **Gemini** key is loaded from this `.env` file automatically.
-- **OpenAI** API keys and **Ollama** base URLs are **not** stored in a file. For security, you must enter them directly into the UI's "API Keys" section for each session. They are not saved or persisted anywhere.
+-   The **Gemini** key is loaded from this `.env` file automatically.
+-   **OpenAI** API keys and **Ollama** base URLs are **not** stored in a file. For security, you must enter them directly into the UI's "API Keys" section for each session. They are not saved or persisted anywhere.
 
-### 4. Run the Application
+### 3. Install Dependencies & Run
 
 ```bash
+# If you are using npm
+npm install
 npm start
+
+# Or if you are using yarn
+yarn
+yarn start
 ```
 
-The application should now be running on `http://localhost:3000` (or another port if 3000 is in use).
+The application should now be running. Your browser will open to the correct local address.
+
+---
+
+## Using with Ollama (Local Models)
+
+GlyphBreaker has first-class support for running against local models via [Ollama](https://ollama.com/).
+
+### 1. Install and Run Ollama
+
+First, download and install the Ollama application for your operating system from the official website. Once installed, it runs in the background.
+
+### 2. Download Models
+
+Open your terminal and pull the models that GlyphBreaker is pre-configured to use.
+
+```bash
+ollama pull llama3
+ollama pull mistral
+ollama pull codellama
+```
+
+### 3. Configure CORS
+
+For GlyphBreaker (running in your browser) to communicate with Ollama (running on your machine), you must configure Ollama's Cross-Origin Resource Sharing (CORS) policy.
+
+#### macOS
+
+Open the Terminal app and run these commands to set the required environment variable and restart Ollama:
+
+```bash
+# Allow any web page to connect to Ollama
+launchctl setenv OLLAMA_ORIGINS "*"
+
+# Restart Ollama to apply the change
+launchctl unload ~/Library/LaunchAgents/com.ollama.ollama.plist
+launchctl load ~/Library/LaunchAgents/com.ollama.ollama.plist
+```
+
+#### Windows
+
+You need to set a system environment variable:
+
+1.  Press the **Windows key**, type `env`, and select **"Edit the system environment variables"**.
+2.  In the System Properties window, click **"Environment Variables..."**.
+3.  Under "System variables", click **"New..."**.
+4.  For **Variable name**, enter: `OLLAMA_ORIGINS`
+5.  For **Variable value**, enter: `*`
+6.  Click OK on all windows to save.
+7.  **Restart your computer** for the change to take effect.
+
+#### Linux
+
+You need to add the variable to the Ollama systemd service.
+
+1.  Open the service file for editing:
+    ```bash
+    sudo systemctl edit ollama.service
+    ```
+2.  This will open a text editor. Add the following lines:
+    ```ini
+    [Service]
+    Environment="OLLAMA_ORIGINS=*"
+    ```
+3.  Save the file and exit the editor.
+4.  Reload the systemd configuration and restart Ollama:
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl restart ollama
+    ```
+
+After these steps, select "Ollama" as the provider in the GlyphBreaker UI. The status indicator next to the URL input should turn green.
 
 ---
 
 ## How to Use GlyphBreaker
 
-### The Interface
-
-The UI is divided into two main columns for an efficient workflow:
-- **Left Column (Configuration Panel)**: Where you set up your test environment.
-- **Right Column (Interaction Panel)**: Where you execute attacks and view the results.
-
-### 1. Configuration Panel
+### 1. Configuration Panel (Left)
 
 This is your command center for setting up a test scenario.
 
-- **Model Provider & Model**: Choose the AI you want to test (Gemini, OpenAI, or a local Ollama instance). The model dropdown will update with options for the selected provider.
-- **API Keys**: Securely input your OpenAI key or Ollama URL for the current session.
-- **Model Parameters**:
-    - **Temperature**: Controls creativity (0.0 = deterministic, 1.0 = highly creative).
-    - **Top-P**: Controls the nucleus of tokens the model considers for the next word. A value of `0.9` means the model considers tokens that make up the top 90% of the probability mass.
-    - **Top-K**: Limits the model's choices to the `K` most likely next tokens. *Note: This is hidden for OpenAI, as their API does not use this parameter.*
-- **Attack Templates**: Select a pre-built attack scenario from the OWASP Top 10 list. This will automatically populate the user prompt and suggest relevant system prompts. Hover over the info icon (`ℹ️`) for a description of each attack.
-- **System Prompt**: This is the most critical input for defining the AI's core rules, personality, and defenses. Use the suggested prompts from a template or write your own.
-- **Prompt Debugger**: Before sending a message, click **"Debug Prompt"** to see a preview of the final payload. It highlights common injection keywords in your user prompt. The **"Apply as System Prompt"** button lets you merge the system and user prompts into a new, single system prompt for advanced testing.
+-   **Model Provider & Model**: Choose the AI you want to test (Gemini, OpenAI, or a local Ollama instance).
+-   **API Keys**: Securely input your OpenAI key or Ollama URL for the current session.
+-   **Model Parameters**: Adjust Temperature, Top-P, and Top-K to control model behavior.
+-   **Attack Templates**: Select a pre-built scenario from the OWASP Top 10 list or one of your own custom templates.
+    -   Click the **"Manage"** button to open the Custom Template Manager, where you can create, edit, and delete your own attack templates for repeated use.
+-   **System Prompt**: Define the AI's core rules, personality, and defenses. Use the suggested prompts from a template or write your own.
+-   **Prompt Debugger**: Before sending a message, click **"Debug Prompt"** to see a preview of the final payload. It highlights common injection keywords in your user prompt.
 
-### 2. Interaction Panel
+### 2. Interaction Panel (Center & Right)
 
 This is where the action happens.
 
-- **Chat Panel**: This is your direct line to the LLM. The user prompt from an attack template appears here, ready to be sent. The conversation history is maintained for context.
-- **Defense Analysis Panel**: After a conversation, click **"Analyze"**. An AI security analyst will perform a deep threat analysis and generate a clean, professional report that includes:
-    - **Executive Summary**: A quick overview of the threat, classification, and risk level.
-    - **Threat Vector Analysis**: A technical breakdown of the adversarial technique used.
-    - **Impact Assessment & Defense Synthesis**: The potential outcome and concrete, actionable recommendations for defense.
+-   **Chat Panel**: Your direct line to the LLM. The user prompt from an attack template appears here, ready to be sent.
+-   **Defense Analysis Panel**: After a conversation, click **"Analyze"**. An AI security analyst will perform a deep threat analysis and generate a clean, professional report with an executive summary, threat vector analysis, impact assessment, and concrete defense recommendations.

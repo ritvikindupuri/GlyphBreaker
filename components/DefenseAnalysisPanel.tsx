@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { Message } from '../types';
-import { Spinner } from './icons/Spinner';
+import { AnalysisLoadingAnimation } from './AnalysisLoadingAnimation';
 
 interface DefenseAnalysisPanelProps {
     messages: Message[];
@@ -99,14 +99,10 @@ const DefenseAnalysisPanel: React.FC<DefenseAnalysisPanelProps> = ({ messages, s
                     {isLoading ? 'Analyzing...' : 'Analyze'}
                 </button>
             </div>
-            <div className="flex-grow overflow-y-auto text-sm">
+            <div className="flex-grow overflow-y-auto text-sm relative">
                 {isLoading && !analysis && (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="flex flex-col items-center gap-2 text-sentinel-text-secondary text-center">
-                            <Spinner className="h-8 w-8" />
-                            <p>Performing deep threat analysis...</p>
-                            <p className="text-xs">Analyzing semantic consistency and adversarial vectors.</p>
-                        </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <AnalysisLoadingAnimation />
                     </div>
                 )}
                 {error && <div className="text-red-400 p-2 bg-red-900/20 rounded-md">Error: {error}</div>}
