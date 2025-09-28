@@ -42,7 +42,7 @@ graph TD
     subgraph "External Services"
         Gemini[Google Gemini API]
         OpenAI[OpenAI API]
-        Ollama[Ollama (Local)]
+        Ollama["Ollama (Local)"]
     end
 
     %% Data Flows
