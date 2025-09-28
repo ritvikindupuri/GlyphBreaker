@@ -26,6 +26,7 @@ Follow these steps carefully to set up and run GlyphBreaker on your local machin
 ### Step 1: Prerequisites
 
 -   [Node.js](https://nodejs.org/) (v18 or later is recommended)
+    > **Note:** Node.js is required to manage project packages (`npm`) and to run the local development server. The application itself is a client-side tool and does not use a Node.js backend.
 
 ### Step 2: Clone the Repository
 
