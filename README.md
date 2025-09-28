@@ -19,67 +19,99 @@ This tool is built for security professionals, AI developers, and researchers to
 
 ---
 
-## Getting Started: Local Setup
+## Getting Started: A Foolproof Guide
 
-Follow these instructions to run GlyphBreaker on your local machine.
+Follow these steps carefully to set up and run GlyphBreaker on your local machine without any issues.
 
-### Prerequisites
+### Step 1: Prerequisites
 
--   [Node.js](https://nodejs.org/) (v18 or later recommended)
+-   [Node.js](https://nodejs.org/) (v18 or later is recommended)
 
-### 1. Clone the Repository
+### Step 2: Clone the Repository
 
 ```bash
 git clone https://github.com/google/glyphbreaker.git
 cd glyphbreaker
 ```
 
-### 2. Configure API Keys
+### Step 3: Configure Your Gemini API Key (The Most Important Step)
 
-GlyphBreaker requires a Gemini API key for its core features, including the Defense Analysis panel.
+GlyphBreaker uses the Gemini API for its core **Defense Analysis** feature, regardless of which model you are chatting with. **This step is mandatory for the application to function correctly.** If this key is missing, the Defense Analysis will fail, and you will not be able to use Gemini models in the chat.
 
-1.  **Create a `.env` file** in the root directory of the project. You can copy the example file:
-    ```bash
-    cp .env.example .env
+#### 3a. Create the `.env` File
+
+This file stores your Gemini API key securely.
+
+1.  In the main `glyphbreaker` folder (the "root" of the project), create a new file named exactly `.env`.
+    > You can do this by copying the example file. This is the recommended method:
+    > ```bash
+    > cp .env.example .env
+    > ```
+
+2.  **Verify the file's location.** It must be in the same directory as `package.json` and `src/`.
+
     ```
-2.  **Add your Gemini API key** to this new `.env` file. You can get one from the [Google AI Studio](https://aistudio.google.com/app/apikey).
+    glyphbreaker/
+    ├── src/
+    ├── .env           <-- ✅ CORRECT: Your file must be here
+    ├── .env.example   <-- (This is the example file)
+    ├── package.json
+    └── README.md
+    ```
 
-Your `.env` file should look like this:
+#### 3b. Add Your API Key
 
-```
-# This key is required for Gemini models and the Defense Analysis feature.
-API_KEY=YOUR_GEMINI_API_KEY_HERE
-```
+1.  Open the `.env` file you just created.
+2.  Add your Gemini API key inside it. You can get a key from the [Google AI Studio](https://aistudio.google.com/app/apikey).
 
-**Important:**
--   The **Gemini** key is loaded from this `.env` file automatically.
--   **OpenAI** API keys and **Ollama** base URLs are **not** stored in a file. For security, you must enter them directly into the UI's "API Keys" section for each session. They are not saved or persisted anywhere.
+    Your `.env` file content must look exactly like this, with no extra spaces or quotes:
 
-### 3. Install Dependencies & Run
+    ```
+    # This key is required for Gemini models and the Defense Analysis feature.
+    API_KEY=YOUR_GEMINI_API_KEY_HERE
+    ```
+    *(Replace `YOUR_GEMINI_API_KEY_HERE` with your actual key.)*
+
+#### 3c. Avoid Common Mistakes
+
+-   **Wrong Name:** The file must be named `.env`, not `env`, `glyphbreaker.env`, or `.env.local`. Be careful that your text editor doesn't save it as `.env.txt`.
+-   **Wrong Location:** Do not place the `.env` file inside the `src/` folder or any other sub-folder.
+-   **App Was Already Running:** If you create or change the `.env` file while the application is already running, you **must** stop and restart it for the new key to be loaded.
+
+### Step 4: Install Dependencies & Run
+
+With your API key configured, you can now start the application.
 
 ```bash
-# If you are using npm
+# Install all the necessary packages
 npm install
-npm start
 
-# Or if you are using yarn
-yarn
-yarn start
+# Run the development server
+npm run dev
 ```
+*(Note: The previous instructions suggested `npm start`, but `npm run dev` is the correct command for this project.)*
 
-The application should now be running. Your browser will open to the correct local address.
+The application will start, and your browser should automatically open to the correct local address. The "Defense Analysis" panel will now be fully functional.
 
 ---
 
-## Using with Ollama (Local Models)
+## Using OpenAI and Ollama
+
+For security, your keys and URLs for other services are handled differently:
+
+-   **OpenAI API Keys** and **Ollama Base URLs** are **not** stored in the `.env` file.
+-   You must enter them directly into the UI's "API Keys" section.
+-   These credentials are stored in-memory for your current session only and are **never** saved permanently.
+
+### Using Ollama (Local Models)
 
 GlyphBreaker has first-class support for running against local models via [Ollama](https://ollama.com/).
 
-### 1. Install and Run Ollama
+#### 1. Install and Run Ollama
 
 First, download and install the Ollama application for your operating system from the official website. Once installed, it runs in the background.
 
-### 2. Download Models
+#### 2. Download Models
 
 Open your terminal and pull the models that GlyphBreaker is pre-configured to use.
 
@@ -89,11 +121,11 @@ ollama pull mistral
 ollama pull codellama
 ```
 
-### 3. Configure CORS
+#### 3. Configure CORS
 
 For GlyphBreaker (running in your browser) to communicate with Ollama (running on your machine), you must configure Ollama's Cross-Origin Resource Sharing (CORS) policy.
 
-#### macOS
+##### macOS
 
 Open the Terminal app and run these commands to set the required environment variable and restart Ollama:
 
@@ -106,7 +138,7 @@ launchctl unload ~/Library/LaunchAgents/com.ollama.ollama.plist
 launchctl load ~/Library/LaunchAgents/com.ollama.ollama.plist
 ```
 
-#### Windows
+##### Windows
 
 You need to set a system environment variable:
 
@@ -118,7 +150,7 @@ You need to set a system environment variable:
 6.  Click OK on all windows to save.
 7.  **Restart your computer** for the change to take effect.
 
-#### Linux
+##### Linux
 
 You need to add the variable to the Ollama systemd service.
 
