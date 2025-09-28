@@ -40,77 +40,23 @@ The primary application state is managed within the `App.tsx` component using Re
 
 -   `session`: The currently active `Session` object, containing messages, system prompt, and LLM configuration.
 -   `sessionsHistory`: An array used to hold sessions cleared by the user, allowing them to be restored from the "Session History" modal.
--   `apiKeys`: An in-memory state object to hold OpenAI and Ollama credentials for the duration of the browser session. **It is intentionally not persisted.**
+-   `apiKeys`: An object stored in `localStorage` to hold OpenAI and Ollama credentials.
 -   `isLoading`: A boolean flag to manage the loading state of the chat, preventing user input while the AI is responding.
+-   `isSuggestionLoading`: Manages the loading state for the adversarial prompt generator, distinct from the main chat's `isLoading`.
 -   `isCacheEnabled`: A boolean to toggle the response caching feature.
+-   `isAdversarialMode`: A boolean to activate the AI-assisted attack generation feature.
 
 Data flows unidirectionally from `App.tsx` down to child components via props. State modifications are handled by callback functions passed down from `App.tsx`.
-
-### 1.3. Architecture Diagram
-
-This diagram illustrates the data flow and component interactions within GlyphBreaker.
-
-> **Note:** This diagram uses Mermaid syntax and should render automatically on GitHub.
-
-```mermaid
-graph TD
-    A[User] --> B{GlyphBreaker UI};
-    B -- Interacts with --> D[ControlPanel];
-    B -- Interacts with --> E[ChatPanel];
-    B -- Interacts with --> F[DefenseAnalysisPanel];
-    
-    subgraph "State Management (App.tsx)"
-        C[Session & Config State]
-    end
-
-    D -- Updates State --> C;
-    E -- Updates State & Sends Prompt --> C;
-    F -- Updates State & Requests Analysis --> C;
-    C -- Passes State Down --> D;
-    C -- Passes State Down --> E;
-    C -- Passes State Down --> F;
-
-    subgraph "Backend Services (llmService.ts)"
-        G[Service Layer]
-    end
-
-    E -- Triggers --> G;
-    F -- Triggers --> G;
-
-    G -- Manages Cache --> H[localStorage];
-    G -- Dispatches API Calls --> I((Gemini API));
-    G -- Dispatches API Calls --> J((OpenAI API));
-    G -- Dispatches API Calls --> K((Ollama API));
-```
-
-#### Textual Data Flow Description
-
-If the diagram above does not render, the following steps describe the application's data flow:
-
-1.  **User Interaction**: The user interacts with the UI components (`ControlPanel`, `ChatPanel`, etc.).
-2.  **State Update**: User actions (e.g., typing in the chat, changing a setting) trigger callback functions that update the central state managed within `App.tsx`.
-3.  **Props Down**: The updated state from `App.tsx` is passed back down to all child components as props, causing the UI to re-render.
-4.  **API Call**: When the user sends a message or requests an analysis, the corresponding component (`ChatPanel` or `DefenseAnalysisPanel`) calls a function in the `llmService.ts`.
-5.  **Service Layer Logic**: The `llmService` handles all business logic:
-    *   It first checks `localStorage` for a cached response. If found, it returns the cached data.
-    *   If not cached, it selects the correct provider (Gemini, OpenAI, Ollama) and makes a live, streaming API call.
-6.  **Response Handling**: The streaming response is passed back to the `App.tsx` component, which updates the session state incrementally, causing the chat to display the AI's response in real-time.
-7.  **Cache Storage**: Once the live API call is complete, the `llmService` stores the full response in `localStorage` for future requests.
 
 ## 2. Core Feature Implementation
 
 ### 2.1. `llmService.ts` - The Communication Core
 
-This service is the single point of contact for all LLM API interactions. It abstracts the differences between providers and implements key features like caching and analysis.
+This service is the single point of contact for all LLM API interactions. It abstracts the differences between providers and implements key features like caching, defense analysis, and adversarial attack generation.
 
 #### Multi-Provider Abstraction
 
 The `getProviderStream` async generator function acts as a factory. Based on the `provider` string, it delegates the request to one of three specialized functions: `streamGemini`, `streamOpenAI`, or `streamOllama`. This design pattern makes it easy to add new providers in the future.
-
-#### Streaming Logic
-
--   **Gemini**: Utilizes the official `@google/genai` SDK's `generateContentStream` method, which provides a simple and efficient way to handle streaming responses.
--   **OpenAI & Ollama**: Implemented using the native `fetch` API with `stream: true`. The responses are `ReadableStream` objects, which are processed line-by-line. Each line is decoded from a `Uint8Array` to a string, parsed as JSON (or a JSON fragment), and the relevant content is yielded.
 
 #### Caching Mechanism
 
@@ -130,22 +76,38 @@ The `streamAnalysis` function is a prime example of advanced prompt engineering.
 -   **"Correct vs. Incorrect" Example**: The prompt includes a clear example of the desired format, a technique that significantly improves an LLM's adherence to formatting rules.
 -   **Deep Learning Framing**: It requires the analysis to be framed with concepts like "Adversarial Perturbation" and "Evasion Technique," guiding the model to produce a deeper, more technical analysis than a generic safety review.
 
+#### Adversarial Prompt Generation
+
+The `streamAdversarialSuggestion` function implements the "Adversarial Mode" feature. It transforms the Gemini model into a **meta-agent** or "Red Team AI" that assists the user in crafting the next attack step. This is achieved through a carefully constructed meta-prompt.
+
+-   **Function**: When called, this function sends the entire conversation history, the target AI's system prompt, and a high-level `goal` to the Gemini API.
+-   **Meta-Prompt Strategy**:
+    1.  **Role-Playing**: The prompt begins by assigning the model the role of an "expert AI Red Teamer."
+    2.  **Explicit Goal**: It provides the `goal` from the selected `AttackTemplate` (e.g., "Make the model reveal its initial instructions").
+    3.  **Full Context**: It includes the complete conversation history and, crucially, the *target AI's system prompt*. This gives the Red Team AI "inside information" to reason about the target's defenses and state.
+    4.  **Strict Output Formatting**: The prompt strictly instructs the AI to output *only the next user prompt text*, with no explanation or extra formatting. This allows the response to be streamed directly into the user's input `textarea`.
+-   **Outcome**: This process creates a dynamic feedback loop where the user and the Red Team AI collaborate. The AI analyzes the target's responses and generates a new, adapted attack prompt, effectively automating the creative and strategic burden of a multi-turn red teaming exercise.
+
 ### 2.2. Component Deep Dive
+
+#### `ControlPanel.tsx`
+
+This component acts as the main configuration hub. It manages the UI for selecting models, providers, and attack templates.
+
+-   **Adversarial Mode UI**: It contains the toggle switch for "Adversarial Mode." The switch is dynamically disabled if the currently selected `AttackTemplate` does not have a `goal` property, ensuring the feature can only be activated when an objective is defined.
+
+#### `ChatPanel.tsx`
+
+This component manages the user-AI interaction view.
+
+-   **Adversarial Mode UI**: When `isAdversarialMode` is true, a "Generate Attack Step" button (a target icon) becomes visible next to the text input area. Clicking this button invokes the `handleGenerateAttackStep` function, which calls the `streamAdversarialSuggestion` service. The component also updates its placeholder text to guide the user on how to use the new feature.
 
 #### `DefenseAnalysisPanel.tsx`
 
 This component is responsible for rendering the complex, structured analysis from the `streamAnalysis` service.
 
--   **State Management**: It maintains its own `analysis`, `isLoading`, and `error` states.
 -   **Memoized Parsing (`formattedAnalysis`)**: The raw, streamed analysis string is processed by a `useMemo` hook. This is crucial for performance, as it ensures the complex parsing logic only re-runs when the `analysis` string actually changes.
 -   **Robust Parsing Logic**: The parser is designed to be resilient. It splits the text by newlines and uses `startsWith()` to identify section headers and bullet points based on the keywords dictated by the prompt. It also proactively strips any stray markdown characters that the AI might accidentally include, acting as a final guardrail to ensure clean output.
-
-#### `PromptDebuggerModal.tsx`
-
-This component provides critical insight into the prompt construction process.
-
--   **Keyword Highlighting**: The `highlightKeywords` function uses a regular expression constructed from `PROMPT_INJECTION_KEYWORDS` to find and wrap potential attack vectors in a visually distinct `<span>`. The `\b` word boundary assertions ensure that only whole words are matched.
--   **State Mutation via Callback**: The "Apply as System Prompt" feature does not modify the state directly. Instead, it calls the `onApply` function (passed down from `App.tsx`) with the new, combined prompt string. This adheres to React's unidirectional data flow principles, allowing the parent component to manage its own state.
 
 ### 2.3. Custom Attack Templates & Persistence
 
@@ -156,19 +118,11 @@ GlyphBreaker allows users to extend the built-in OWASP attack library with their
 -   **Unique Identification**: When a new template is created, it is assigned a unique identifier using the `uuid` library. This `id` is crucial for distinguishing between templates and enabling reliable update and delete operations within the state array.
 -   **UI Integration**: The `ControlPanel` component receives both the static `ATTACK_TEMPLATES` and the dynamic `customAttackTemplates` as props. It uses an `<optgroup>` HTML element to clearly separate the built-in templates from the user-created ones in the dropdown menu, providing an organized and intuitive user experience.
 
-### 2.4. Secure Input Handling
-
-As a security-focused tool, GlyphBreaker implements basic input sanitization as a defense-in-depth measure.
-
--   **Implementation**: The sanitization logic is located within the `ChatPanel.tsx` component. Before the `onSendMessage` callback is invoked, the user's input from the `textarea` is processed.
--   **Mechanism**: A simple but effective regular expression, `/<[^>]*>/g`, is used to strip out any characters that form HTML tags. This prevents basic HTML or `<script>` tag injection.
--   **Design Rationale**: While React inherently protects against XSS in most rendering scenarios, sanitizing the input at the source provides an additional layer of security. It ensures that the data sent to the LLM APIs and stored in the session state is free from potentially executable tags, mitigating risks in downstream systems or if the data were ever to be rendered in a non-React context. This preemptive sanitization is a security best practice.
-
 ---
 ## 3. Conclusion
 
 GlyphBreaker represents a significant step forward in the practical application of AI security auditing. By integrating the formal OWASP Top 10 for LLMs framework into a dynamic, multi-provider testing environment, it empowers security professionals to move from ad-hoc prompt testing to a structured, reproducible, and deeply analytical red teaming methodology.
 
-The client-side architecture prioritizes user security and data privacy, while the modular component design and abstracted service layer provide a robust foundation for future expansion. Features like the deep-learning-powered defense analysis, interactive prompt debugger, and extensible custom attack templates provide a comprehensive toolkit for deconstructing AI defenses.
+The client-side architecture prioritizes user security and data privacy. The addition of an **AI-driven adversarial agent** elevates the tool from a simple testing interface to an intelligent attack simulator, capable of guiding users through complex, multi-turn threat scenarios. Paired with the deep-learning-powered defense analysis, GlyphBreaker provides a comprehensive, dual-AI toolkit for deconstructing and hardening AI defenses.
 
 GlyphBreaker is not just an interaction tool; it is a diagnostic platform designed to foster a more secure and resilient AI ecosystem by making enterprise-grade auditing accessible, efficient, and insightful.

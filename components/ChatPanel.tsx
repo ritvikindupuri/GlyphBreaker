@@ -4,6 +4,8 @@ import type { Session, Message } from '../types';
 import { ThinkingDots } from './icons/ThinkingDots';
 import { BarChart } from './charts/BarChart';
 import { JsonTable } from './JsonTable';
+import { TargetIcon } from './icons/TargetIcon';
+import { Spinner } from './icons/Spinner';
 
 // Helper to parse content and determine its type for rendering
 const parseContent = (content: string) => {
@@ -135,7 +137,10 @@ interface ChatPanelProps {
     chatInput: string;
     onChatInputChange: (value: string) => void;
     onSendMessage: (message: string) => void;
+    onGenerateAttack: () => void;
     isLoading: boolean;
+    isSuggestionLoading: boolean;
+    isAdversarialMode: boolean;
 }
 
 const sanitizeInput = (input: string): string => {
@@ -144,7 +149,16 @@ const sanitizeInput = (input: string): string => {
     return input.replace(/<[^>]*>/g, '');
 };
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ session, chatInput, onChatInputChange, onSendMessage, isLoading }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ 
+    session, 
+    chatInput, 
+    onChatInputChange, 
+    onSendMessage, 
+    onGenerateAttack,
+    isLoading,
+    isSuggestionLoading,
+    isAdversarialMode
+}) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -197,18 +211,31 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ session, chatInput, onChatInputCh
                 </div>
             </div>
             <div className="flex items-center gap-2">
+                {isAdversarialMode && (
+                     <button
+                        onClick={onGenerateAttack}
+                        disabled={isLoading || isSuggestionLoading}
+                        className="group relative px-3 py-3 text-sm font-medium text-sentinel-text-primary bg-sentinel-bg border border-sentinel-border rounded-md disabled:cursor-not-allowed hover:bg-sentinel-border transition-colors duration-200"
+                        aria-label="Generate next attack step"
+                    >
+                        {isSuggestionLoading ? <Spinner className="h-5 w-5"/> : <TargetIcon className="h-5 w-5" />}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 text-xs text-center bg-sentinel-bg border border-sentinel-border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                            Generate Next Attack Step
+                        </div>
+                    </button>
+                )}
                 <textarea
                     value={chatInput}
                     onChange={(e) => onChatInputChange(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your message or select an attack..."
+                    placeholder={isAdversarialMode ? "Generate an attack step or type your own..." : "Type your message or select an attack..."}
                     className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-4 py-3 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary resize-none"
                     rows={2}
-                    disabled={isLoading}
+                    disabled={isLoading || isSuggestionLoading}
                 />
                 <button
                     onClick={handleSendMessage}
-                    disabled={isLoading || !chatInput.trim()}
+                    disabled={isLoading || isSuggestionLoading || !chatInput.trim()}
                     className="px-4 py-3 text-sm font-medium text-white bg-sentinel-primary rounded-md disabled:bg-sentinel-text-secondary disabled:cursor-not-allowed hover:bg-blue-500 transition-colors duration-200"
                 >
                     Send

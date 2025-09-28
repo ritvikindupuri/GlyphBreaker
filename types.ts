@@ -33,5 +33,6 @@ export interface AttackTemplate {
     name: string;
     description: string;
     userPrompt: string;
+    goal?: string; // The objective for the new Adversarial Mode
     suggestedSystemPrompts: { name: string; prompt: string }[];
 }

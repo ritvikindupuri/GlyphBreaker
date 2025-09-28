@@ -9,12 +9,12 @@ This tool is built for security professionals, AI developers, and researchers to
 ## Key Features
 
 -   **OWASP Top 10 Attack Library**: A curated set of realistic, subtle attack templates, each mapping directly to an official OWASP Top 10 vulnerability for LLMs.
+-   **Adversarial Mode**: An AI-driven attack generator that analyzes the conversation and suggests the next optimal prompt, transforming manual testing into an adaptive, guided threat simulation.
 -   **Custom Attack Templates**: Define, save, and reuse your own attack scenarios directly within the UI to tailor testing to your specific needs.
 -   **Multi-Provider Support**: Seamlessly switch between **Gemini**, **OpenAI**, and local **Ollama** models to compare their resilience against the same attacks.
 -   **Advanced Model Configuration**: Real-time control over core sampling parameters (`Temperature`, `Top-P`, `Top-K`) to fine-tune model behavior.
 -   **Deep-Learning-Based Defense Analysis**: An AI-driven security analyst that provides a real-time threat report on your conversations, framed with concepts from deep learning security.
 -   **Interactive Prompt Debugger**: A powerful modal that visualizes the final API payload, automatically highlights potential injection keywords, and allows you to apply "flattened" prompts for iterative testing.
--   **Secure Input Handling**: User prompts are automatically sanitized to strip potential HTML and script tags before processing, providing a crucial layer of defense-in-depth.
 -   **Professional Workflow Tools**: Includes session history for restoring cleared conversations and response caching to accelerate repetitive tests and reduce API costs.
 
 ---
@@ -37,7 +37,7 @@ cd glyphbreaker
 
 ### Step 3: Configure Your Gemini API Key (The Most Important Step)
 
-GlyphBreaker uses the Gemini API for its core **Defense Analysis** feature, regardless of which model you are chatting with. **This step is mandatory for the application to function correctly.** If this key is missing, the Defense Analysis will fail, and you will not be able to use Gemini models in the chat.
+GlyphBreaker uses the Gemini API for its core **Defense Analysis** and **Adversarial Mode** features, regardless of which model you are chatting with. **This step is mandatory for the application to function correctly.** If this key is missing, these features will fail, and you will not be able to use Gemini models in the chat.
 
 #### 3a. Create the `.env` File
 
@@ -102,7 +102,7 @@ For security, your keys and URLs for other services are handled differently:
 
 -   **OpenAI API Keys** and **Ollama Base URLs** are **not** stored in the `.env` file.
 -   You must enter them directly into the UI's "API Keys" section.
--   These credentials are stored in-memory for your current session only and are **never** saved permanently.
+-   These credentials are stored only in your browser's local storage.
 
 ### Using Ollama (Local Models)
 
@@ -181,11 +181,11 @@ After these steps, select "Ollama" as the provider in the GlyphBreaker UI. The s
 
 This is your command center for setting up a test scenario.
 
--   **Model Provider & Model**: Choose the AI you want to test (Gemini, OpenAI, or a local Ollama instance).
--   **API Keys**: Securely input your OpenAI key or Ollama URL for the current session.
+-   **Model & API Keys**: Choose the AI you want to test and input credentials if required.
 -   **Model Parameters**: Adjust Temperature, Top-P, and Top-K to control model behavior.
 -   **Attack Templates**: Select a pre-built scenario from the OWASP Top 10 list or one of your own custom templates.
     -   Click the **"Manage"** button to open the Custom Template Manager, where you can create, edit, and delete your own attack templates for repeated use.
+-   **Adversarial Mode**: After selecting an attack template that has a defined "Goal," you can enable this toggle. This activates the AI-assisted attack generation feature.
 -   **System Prompt**: Define the AI's core rules, personality, and defenses. Use the suggested prompts from a template or write your own.
 -   **Prompt Debugger**: Before sending a message, click **"Debug Prompt"** to see a preview of the final payload. It highlights common injection keywords in your user prompt.
 
@@ -193,5 +193,6 @@ This is your command center for setting up a test scenario.
 
 This is where the action happens.
 
--   **Chat Panel**: Your direct line to the LLM. The user prompt from an attack template appears here, ready to be sent.
+-   **Chat Panel**: Your direct line to the LLM. The user prompt from an attack template appears here.
+    -   When **Adversarial Mode** is active, a new **target button** appears. Click it to have the Red Team AI analyze the conversation and generate the next optimal attack step for you, streaming it directly into the input box.
 -   **Defense Analysis Panel**: After a conversation, click **"Analyze"**. An AI security analyst will perform a deep threat analysis and generate a clean, professional report with an executive summary, threat vector analysis, impact assessment, and concrete defense recommendations.

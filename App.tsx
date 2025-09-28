@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Header from './components/Header';
@@ -7,7 +8,7 @@ import DefenseAnalysisPanel from './components/DefenseAnalysisPanel';
 import SessionHistoryModal from './components/SessionHistoryModal';
 import PromptDebuggerModal from './components/PromptDebuggerModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { streamLlmResponse, streamAnalysis } from './services/llmService';
+import { streamLlmResponse, streamAnalysis, streamAdversarialSuggestion } from './services/llmService';
 import type { Session, Message, LlmConfig, ApiKeys, AttackTemplate } from './types';
 import { MODEL_OPTIONS, ATTACK_TEMPLATES } from './constants';
 
@@ -42,8 +43,10 @@ const App: React.FC = () => {
     const [apiKeys, setApiKeys] = useState<ApiKeys>({ openAI: '', ollama: '' });
     const [chatInput, setChatInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
     const [isCacheEnabled, setCacheEnabled] = useState(true);
     const [currentAttack, setCurrentAttack] = useState<AttackTemplate | null>(null);
+    const [isAdversarialMode, setAdversarialMode] = useState(false);
 
     // UI state
     const [isHistoryVisible, setHistoryVisible] = useState(false);
@@ -236,6 +239,32 @@ const App: React.FC = () => {
         }, 0);
     };
 
+    const handleGenerateAttackStep = async () => {
+        if (!currentAttack?.goal || isSuggestionLoading) return;
+
+        setIsSuggestionLoading(true);
+        setChatInput(''); // Clear input before streaming suggestion
+        
+        try {
+            const stream = streamAdversarialSuggestion(
+                session.messages,
+                currentAttack.goal,
+                session.systemPrompt
+            );
+
+            for await (const chunk of stream) {
+                setChatInput(prev => prev + chunk);
+            }
+        } catch (error) {
+            console.error('Adversarial Suggestion Error:', error);
+            const errorMessage = error instanceof Error ? `Error: ${error.message}` : 'Failed to generate suggestion.';
+            setChatInput(errorMessage);
+        } finally {
+            setIsSuggestionLoading(false);
+        }
+    };
+
+
     return (
         <div className="flex flex-col h-screen bg-sentinel-bg text-sentinel-text-primary font-sans">
             <Header onShowHistory={() => setHistoryVisible(true)} />
@@ -247,6 +276,8 @@ const App: React.FC = () => {
                         chatInput={chatInput}
                         isCacheEnabled={isCacheEnabled}
                         currentAttack={currentAttack}
+                        isAdversarialMode={isAdversarialMode}
+                        onAdversarialModeChange={setAdversarialMode}
                         onApiKeysChange={setApiKeys}
                         onLlmConfigChange={handleLlmConfigChange}
                         onSystemPromptChange={handleSystemPromptChange}
@@ -267,7 +298,10 @@ const App: React.FC = () => {
                         chatInput={chatInput}
                         onChatInputChange={setChatInput}
                         onSendMessage={handleSendMessage}
+                        onGenerateAttack={handleGenerateAttackStep}
                         isLoading={isLoading}
+                        isSuggestionLoading={isSuggestionLoading}
+                        isAdversarialMode={isAdversarialMode && !!currentAttack?.goal}
                     />
                 </div>
                 <div className="md:col-span-3 h-full min-h-0">
