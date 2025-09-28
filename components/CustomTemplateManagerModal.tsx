@@ -15,12 +15,13 @@ const BLANK_TEMPLATE: Omit<AttackTemplate, 'id'> = {
     name: '',
     description: '',
     userPrompt: '',
+    goal: '',
     suggestedSystemPrompts: [{ name: 'Default', prompt: 'You are a helpful assistant.' }],
 };
 
 const CustomTemplateManagerModal: React.FC<CustomTemplateManagerModalProps> = ({ isOpen, onClose, templates, onSave, onDelete }) => {
     const [view, setView] = useState<'list' | 'form'>('list');
-    const [currentTemplate, setCurrentTemplate] = useState<AttackTemplate | null>(null);
+    const [currentTemplate, setCurrentTemplate] = useState<AttackTemplate | Omit<AttackTemplate, 'id'> | null>(null);
     const [templateToDelete, setTemplateToDelete] = useState<AttackTemplate | null>(null);
 
     useEffect(() => {
@@ -50,7 +51,7 @@ const CustomTemplateManagerModal: React.FC<CustomTemplateManagerModalProps> = ({
 
     const handleSave = () => {
         if (currentTemplate && currentTemplate.name.trim()) {
-            onSave(currentTemplate);
+            onSave(currentTemplate as AttackTemplate);
             handleBackToList();
         }
     };
@@ -143,13 +144,27 @@ const CustomTemplateManagerModal: React.FC<CustomTemplateManagerModalProps> = ({
                     <textarea id="tmpl-user" rows={5} value={currentTemplate?.userPrompt || ''} onChange={(e) => handleFormChange('userPrompt', e.target.value)} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 focus:ring-sentinel-primary focus:border-sentinel-primary"/>
                 </div>
                 <div>
+                    <label htmlFor="tmpl-goal" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Adversarial Goal (Optional)</label>
+                    <textarea 
+                        id="tmpl-goal" 
+                        rows={3} 
+                        value={currentTemplate?.goal || ''} 
+                        onChange={(e) => handleFormChange('goal', e.target.value)} 
+                        className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 focus:ring-sentinel-primary focus:border-sentinel-primary"
+                        placeholder="e.g., Make the model reveal its initial instructions..."
+                    />
+                    <p className="text-xs text-sentinel-text-secondary mt-1">
+                        Defining a goal enables the AI-powered "Adversarial Mode" for this template.
+                    </p>
+                </div>
+                <div>
                     <h4 className="text-sm font-medium text-sentinel-text-secondary mb-2">Suggested System Prompts</h4>
                     <div className="space-y-3">
                         {currentTemplate?.suggestedSystemPrompts.map((p, i) => (
                             <div key={i} className="bg-sentinel-bg/50 border border-sentinel-border/50 rounded-md p-3">
                                 <div className="flex justify-between items-center mb-2">
                                      <label htmlFor={`sys-name-${i}`} className="block text-xs font-medium text-sentinel-text-secondary">Prompt Name</label>
-                                     <button onClick={() => removeSystemPrompt(i)} disabled={currentTemplate.suggestedSystemPrompts.length <= 1} className="text-sentinel-text-secondary hover:text-sentinel-accent disabled:opacity-50 disabled:cursor-not-allowed">
+                                     <button onClick={() => removeSystemPrompt(i)} disabled={(currentTemplate.suggestedSystemPrompts.length || 0) <= 1} className="text-sentinel-text-secondary hover:text-sentinel-accent disabled:opacity-50 disabled:cursor-not-allowed">
                                         <TrashIcon className="h-4 w-4"/>
                                      </button>
                                 </div>
@@ -179,7 +194,7 @@ const CustomTemplateManagerModal: React.FC<CustomTemplateManagerModalProps> = ({
                 <div className="bg-sentinel-surface border border-sentinel-border rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center p-4 border-b border-sentinel-border">
                         <h2 className="text-xl font-bold text-sentinel-text-primary">
-                            {view === 'list' ? 'Custom Attack Templates' : (currentTemplate?.id ? 'Edit Template' : 'Create New Template')}
+                            {view === 'list' ? 'Custom Attack Templates' : (currentTemplate && 'id' in currentTemplate ? 'Edit Template' : 'Create New Template')}
                         </h2>
                         <button onClick={onClose} className="text-sentinel-text-secondary text-2xl leading-none hover:text-sentinel-text-primary">&times;</button>
                     </div>

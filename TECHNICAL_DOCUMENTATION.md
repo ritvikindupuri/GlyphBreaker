@@ -4,7 +4,7 @@ This document provides a deep technical dive into the architecture, components, 
 
 ## 1. Architecture Overview
 
-GlyphBreaker is a client-side single-page application (SPA) built with **React** and **TypeScript**. It communicates directly with various third-party LLM APIs from the user's browser.
+GlyphBreaker is a client-side single-page application (SPA) built with **React** and **TypeScript**. It communicates directly with various third-party LLM APIs from the user's browser, creating a secure environment where user data and API keys (for OpenAI/Ollama) never leave the client.
 
 -   **Framework**: React (v19)
 -   **Language**: TypeScript
@@ -12,7 +12,72 @@ GlyphBreaker is a client-side single-page application (SPA) built with **React**
 -   **State Management**: React Hooks (`useState`, `useCallback`, `useMemo`) for component-level and app-level state.
 -   **API Communication**: Centralized in `services/llmService.ts` using native `fetch` and the `@google/genai` SDK.
 
-### 1.1. Project Structure
+### 1.1. System Architecture Diagram
+
+This diagram illustrates the flow of data and control within the GlyphBreaker application.
+
+```mermaid
+graph TD
+    subgraph User Interaction
+        User(👤 User)
+    end
+
+    subgraph "GlyphBreaker Client (Browser)"
+        subgraph "UI Components"
+            CP[ControlPanel]
+            ChatP[ChatPanel]
+            DAP[DefenseAnalysisPanel]
+        end
+        
+        subgraph "Core Logic"
+            App[App.tsx<br/><i>Central State Management</i>]
+            LLMS[llmService.ts<br/><i>API Abstraction & Caching</i>]
+        end
+
+        subgraph "Browser Storage"
+            LS[LocalStorage<br/><i>API Keys, Sessions, Cache</i>]
+        end
+    end
+
+    subgraph "External Services"
+        Gemini[Google Gemini API]
+        OpenAI[OpenAI API]
+        Ollama[Ollama (Local)]
+    end
+
+    %% Data Flows
+    User -- Interacts --> CP
+    User -- Sends Message --> ChatP
+    User -- Requests Analysis --> DAP
+
+    CP -- Updates Config (Callbacks) --> App
+    ChatP -- Sends Message (Callbacks) --> App
+    DAP -- Triggers Analysis (Callbacks) --> App
+
+    App -- Passes State (Props) --> CP
+    App -- Passes State (Props) --> ChatP
+    App -- Passes State (Props) --> DAP
+
+    App -- Manages --> LS
+    
+    App -- Initiates API Call --> LLMS
+    LLMS -- Reads/Writes Cache --> LS
+    LLMS -- Makes API Request --> Gemini
+    LLMS -- Makes API Request --> OpenAI
+    LLMS -- Makes API Request --> Ollama
+
+    %% Style Definitions
+    style User fill:#A7C7E7,stroke:#333,stroke-width:2px
+    style App fill:#f9f,stroke:#333,stroke-width:2px
+    style LLMS fill:#b3e6b3,stroke:#333,stroke-width:2px
+    style LS fill:#f5deb3,stroke:#333,stroke-width:2px
+    style Gemini fill:#d3d3d3,stroke:#333,stroke-width:2px
+    style OpenAI fill:#d3d3d3,stroke:#333,stroke-width:2px
+    style Ollama fill:#d3d3d3,stroke:#333,stroke-width:2px
+
+```
+
+### 1.2. Project Structure
 
 ```
 /
@@ -34,7 +99,7 @@ GlyphBreaker is a client-side single-page application (SPA) built with **React**
 └── README.md
 ```
 
-### 1.2. State Management (`App.tsx`)
+### 1.3. State Management (`App.tsx`)
 
 The primary application state is managed within the `App.tsx` component using React Hooks. This centralized approach keeps data flow predictable.
 
@@ -67,16 +132,20 @@ The `streamLlmResponse` function orchestrates the caching logic.
 3.  **Simulated Streaming**: If a cache hit occurs, the stored response is split into chunks and yielded with a minimal `setTimeout` delay. This preserves the "typing" UI effect for a consistent user experience while being significantly faster than a real API call.
 4.  **Cache Storage**: If no cached response is found, a live API call is made. The full response is accumulated in a variable as it streams. Once the stream is complete, the entire response is stored in `localStorage` using the generated key.
 
-#### Defense Analysis Prompt Engineering
+#### Dual AI System: Defense and Offense
 
-The `streamAnalysis` function is a prime example of advanced prompt engineering. The prompt sent to Gemini is highly structured to force a reliable, parseable output.
+GlyphBreaker's most advanced capabilities are powered by a dual-AI system, where the Gemini API is leveraged in two distinct roles: a defense analyst and an adversarial attacker. This is achieved through sophisticated prompt engineering within `llmService.ts`.
+
+#### 1. Defense Analysis Prompt Engineering
+
+The `streamAnalysis` function transforms the Gemini model into a dedicated security analyst. The prompt is highly structured to force a reliable, machine-parseable output.
 
 -   **Role-Playing**: It instructs the model to "Act as an expert AI Security Operations (AISecOps) analyst."
 -   **Structured Output**: It explicitly demands the use of keywords (`SECTION:`, `BULLET:`) and strictly forbids markdown. This makes the frontend parsing logic simpler and more robust.
 -   **"Correct vs. Incorrect" Example**: The prompt includes a clear example of the desired format, a technique that significantly improves an LLM's adherence to formatting rules.
 -   **Deep Learning Framing**: It requires the analysis to be framed with concepts like "Adversarial Perturbation" and "Evasion Technique," guiding the model to produce a deeper, more technical analysis than a generic safety review.
 
-#### Adversarial Prompt Generation
+#### 2. Adversarial Prompt Generation
 
 The `streamAdversarialSuggestion` function implements the "Adversarial Mode" feature. It transforms the Gemini model into a **meta-agent** or "Red Team AI" that assists the user in crafting the next attack step. This is achieved through a carefully constructed meta-prompt.
 

@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import type { Session, Message } from '../types';
 import { ThinkingDots } from './icons/ThinkingDots';
@@ -215,10 +214,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                      <button
                         onClick={onGenerateAttack}
                         disabled={isLoading || isSuggestionLoading}
-                        className="group relative px-3 py-3 text-sm font-medium text-sentinel-text-primary bg-sentinel-bg border border-sentinel-border rounded-md disabled:cursor-not-allowed hover:bg-sentinel-border transition-colors duration-200"
+                        className={`group relative px-3 py-3 text-sm font-medium text-sentinel-text-primary border rounded-md disabled:cursor-not-allowed hover:bg-sentinel-border transition-colors duration-200 ${
+                            isSuggestionLoading 
+                                ? 'bg-sentinel-border border-sentinel-primary/50' 
+                                : 'bg-sentinel-bg border-sentinel-border'
+                        }`}
                         aria-label="Generate next attack step"
                     >
-                        {isSuggestionLoading ? <Spinner className="h-5 w-5"/> : <TargetIcon className="h-5 w-5" />}
+                        {isSuggestionLoading ? <Spinner className="h-5 w-5 text-sentinel-primary"/> : <TargetIcon className="h-5 w-5" />}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 text-xs text-center bg-sentinel-bg border border-sentinel-border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
                             Generate Next Attack Step
                         </div>

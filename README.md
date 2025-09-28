@@ -8,14 +8,40 @@ This tool is built for security professionals, AI developers, and researchers to
 
 ## Key Features
 
--   **OWASP Top 10 Attack Library**: A curated set of realistic, subtle attack templates, each mapping directly to an official OWASP Top 10 vulnerability for LLMs.
--   **Adversarial Mode**: An AI-driven attack generator that analyzes the conversation and suggests the next optimal prompt, transforming manual testing into an adaptive, guided threat simulation.
--   **Custom Attack Templates**: Define, save, and reuse your own attack scenarios directly within the UI to tailor testing to your specific needs.
--   **Multi-Provider Support**: Seamlessly switch between **Gemini**, **OpenAI**, and local **Ollama** models to compare their resilience against the same attacks.
--   **Advanced Model Configuration**: Real-time control over core sampling parameters (`Temperature`, `Top-P`, `Top-K`) to fine-tune model behavior.
--   **Deep-Learning-Based Defense Analysis**: An AI-driven security analyst that provides a real-time threat report on your conversations, framed with concepts from deep learning security.
--   **Interactive Prompt Debugger**: A powerful modal that visualizes the final API payload, automatically highlights potential injection keywords, and allows you to apply "flattened" prompts for iterative testing.
--   **Professional Workflow Tools**: Includes session history for restoring cleared conversations and response caching to accelerate repetitive tests and reduce API costs.
+GlyphBreaker is more than a chat interface; it's a complete, integrated security auditing platform.
+
+-   **OWASP Top 10 Attack Library**: A curated set of realistic, subtle attack templates, each mapping directly to an official OWASP Top 10 vulnerability for LLMs. This provides a formal, structured foundation for your security testing.
+
+-   **Adversarial Mode (AI-Powered Attack Generation)**:
+    -   Engages a second "Red Team AI" that acts as an expert attack partner.
+    -   This meta-agent analyzes the entire conversation history and the target model's defenses to autonomously generate the *next optimal attack prompt* for you.
+    -   Transforms manual, guess-based testing into an adaptive, guided threat simulation, allowing you to discover complex, multi-turn vulnerabilities more efficiently.
+
+-   **Dual-AI Defense Analysis**:
+    -   Features a dedicated "Defense Analysis" panel powered by a third AI agent acting as an expert AI Security Operations (AISecOps) analyst.
+    -   With one click, this agent performs a deep threat analysis on your conversation, providing a professional, parseable report.
+    -   The analysis is framed with concepts from deep learning security, identifying threat vectors, assessing impact, and providing concrete defense recommendations for input sanitization and behavioral hardening.
+
+-   **Custom Attack Template Manager**:
+    -   Define, save, and reuse your own attack scenarios directly within the UI.
+    -   Create complex, multi-turn adaptive attacks by defining an "Adversarial Goal," which enables the Adversarial Mode for your custom templates.
+    -   Your custom library is persisted in browser storage, creating a personalized and powerful testing toolkit.
+
+-   **Multi-Provider Support & Comparison**:
+    -   Seamlessly switch between leading AI providers (**Gemini**, **OpenAI**) and local models (**Ollama**) to benchmark their resilience against the same attack vectors.
+    -   Identify which models and configurations are most robust for your specific use case.
+
+-   **Interactive Prompt Debugger**:
+    -   A powerful modal that visualizes the final API payload before it's sent.
+    -   Automatically highlights dozens of common prompt injection keywords within your user prompt, helping you spot potential attack vectors instantly.
+    -   Allows you to "flatten" the user prompt into the system prompt for advanced testing scenarios.
+
+-   **Advanced Model Configuration**:
+    -   Gain granular, real-time control over core sampling parameters (`Temperature`, `Top-P`, `Top-K`) to fine-tune model behavior and test its stability under different generation settings.
+
+-   **Professional Workflow Tools**:
+    -   **Session History**: Cleared sessions are automatically saved. Restore, rename, and manage past conversations to review or continue previous tests.
+    -   **Intelligent Caching**: Automatically caches responses for identical requests, dramatically accelerating repetitive tests and reducing API costs.
 
 ---
 
