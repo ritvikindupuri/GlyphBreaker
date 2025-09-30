@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { Message } from '../types';
 import { AnalysisLoadingAnimation } from './AnalysisLoadingAnimation';
 
@@ -11,6 +12,14 @@ const DefenseAnalysisPanel: React.FC<DefenseAnalysisPanelProps> = ({ messages, s
     const [analysis, setAnalysis] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (messages.length === 0) {
+            setAnalysis('');
+            setError('');
+            setIsLoading(false);
+        }
+    }, [messages]);
 
     const handleAnalyze = useCallback(async () => {
         setIsLoading(true);

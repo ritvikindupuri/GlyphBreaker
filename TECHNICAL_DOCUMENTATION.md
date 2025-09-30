@@ -42,7 +42,7 @@ graph TD
     subgraph "External Services"
         Gemini[Google Gemini API]
         OpenAI[OpenAI API]
-        Ollama["Ollama (Local)"]
+        Ollama[Ollama (Local)]
     end
 
     %% Data Flows
@@ -77,55 +77,7 @@ graph TD
 
 ```
 
-### 1.2. Architecture Walkthrough
-
-This section explains each part of the diagram, component by component, to provide a clear understanding of the system's design.
-
-#### 1.2.1. The User (Initiator)
-
--   **`User`**: Represents the end-user (a security professional, developer, etc.). Every action and data flow within the application originates from their interaction with the UI.
-
-#### 1.2.2. The Client: UI Components (The "Face")
-
-These are the React components the user directly sees and interacts with. They are responsible for rendering the UI and capturing user input. They are "dumb" components that primarily receive data via props and report user actions via callback functions.
-
--   **`ControlPanel`**: The configuration hub on the left. The user sets the model, parameters, and attack templates here.
--   **`ChatPanel`**: The central interaction area where messages are displayed and composed.
--   **`DefenseAnalysisPanel`**: The right-hand panel where the user can trigger and view the AI-powered security analysis.
-
-#### 1.2.3. The Client: Core Logic (The "Brain")
-
-This is the central nervous system of the application, responsible for managing state and handling business logic.
-
--   **`App.tsx`**: The root component and the single source of truth for the application's state. It orchestrates the entire application, holding the session data, API keys, and UI visibility flags. When a user interacts with a UI component, a callback function is triggered, which updates the state within `App.tsx`. This state change is then propagated back down to the UI components via props, causing them to re-render with the new information.
--   **`llmService.ts`**: This service is the application's sole gateway to the outside world. It abstracts away the complexities of each LLM provider's API. When `App.tsx` needs to send a message or run an analysis, it calls a function in this service. The service handles API key management, request formatting, streaming response handling, and the caching logic.
-
-#### 1.2.4. The Client: Browser Storage (The "Memory")
-
--   **`LocalStorage`**: The application uses the browser's built-in `LocalStorage` for persistence. This ensures that user data is not lost between sessions. It is responsible for storing:
-    -   API Keys (for OpenAI and Ollama) and the Cache Enabled setting.
-    -   Cleared session history.
-    -   User-created custom attack templates.
-    -   Cached LLM responses to accelerate repetitive tests.
-
-#### 1.2.5. External Services (The "Knowledge Base")
-
--   **`Gemini API`**, **`OpenAI API`**, **`Ollama (Local)`**: These are the external, third-party services that provide the language model capabilities. `llmService.ts` makes direct, client-side `fetch` calls or uses the appropriate SDK to communicate with these endpoints.
-
-### 1.3. Data Flow Example: A User Sends a Message
-
-Let's trace a typical user action through the architecture:
-
-1.  **User Input**: The `User` types "Hello" into the `ChatPanel`'s text area and clicks "Send".
-2.  **Callback Trigger**: The `ChatPanel`'s `onClick` handler calls the `onSendMessage` function, which was passed down as a prop from `App.tsx`.
-3.  **Central State Update**: Inside `App.tsx`, the `handleSendMessage` function updates the `session` state, adding the new user message to the `messages` array. It also sets the `isLoading` state to `true`. React automatically re-renders the `ChatPanel` to show the new user message and a loading indicator.
-4.  **API Abstraction Layer**: `handleSendMessage` then calls the `streamLlmResponse` function in `llmService.ts`, passing the current provider, message history, API keys, and configuration.
-5.  **Caching Logic**: `llmService.ts` first generates a unique cache key based on the entire request context. It checks `LocalStorage` for this key. If found, it streams the cached response back. If not, it proceeds to the next step.
-6.  **External API Call**: The service identifies the correct provider (e.g., 'gemini') and calls the corresponding `streamGemini` function. This function uses the `@google/genai` SDK to make a streaming request to the Gemini API.
-7.  **Streaming Response**: As chunks of data arrive from the Gemini API, `llmService.ts` `yields` them back to `App.tsx`. Inside the `handleSendMessage` function, each new chunk is appended to the assistant's message content in the `session` state. This causes the `ChatPanel` to re-render continuously, creating the "typing" effect.
-8.  **Final State & Caching**: Once the stream is complete, `isLoading` is set to `false`. The complete response is then stored in `LocalStorage` with the cache key from step 5, ready for future identical requests.
-
-### 1.4. Project Structure
+### 1.2. Project Structure
 
 ```
 /
@@ -147,7 +99,7 @@ Let's trace a typical user action through the architecture:
 └── README.md
 ```
 
-### 1.5. State Management (`App.tsx`)
+### 1.3. State Management (`App.tsx`)
 
 The primary application state is managed within the `App.tsx` component using React Hooks. This centralized approach keeps data flow predictable.
 

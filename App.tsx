@@ -121,6 +121,7 @@ const App: React.FC = () => {
         }
         setSession(createNewSession());
         setCurrentAttack(null);
+        setChatInput('');
         setClearConfirmationVisible(false);
     };
     
