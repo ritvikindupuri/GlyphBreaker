@@ -20,7 +20,6 @@ This diagram illustrates the flow of data and control within the GlyphBreaker ap
   <img src="https://i.imgur.com/bv4WkWY.png" alt="Architecture Diagram" width="800"/>
 </p>
 
-```
 
 ### 1.3. State Management (`App.tsx`)
 
