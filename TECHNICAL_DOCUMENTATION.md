@@ -16,7 +16,9 @@ GlyphBreaker is a client-side single-page application (SPA) built with **React**
 
 This diagram illustrates the flow of data and control within the GlyphBreaker application.
 
-https://imgur.com/bv4WkWY
+<p align="center">
+  <img src="https://i.imgur.com/bv4WkWY.png" alt="Architecture Diagram" width="800"/>
+</p>
 
 ```
 
