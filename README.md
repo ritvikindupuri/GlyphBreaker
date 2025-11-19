@@ -4,7 +4,7 @@ GlyphBreaker is an advanced, enterprise-grade security toolkit for red teaming L
 
 This tool is built for security professionals, AI developers, and researchers to systematically audit the safety and integrity of their AI applications.
 
-(New Update Features: 
+A new update with new Features has been added:
 
 1. New "Agentic Cyber-Espionage" Simulation (LLM11)
 Real-World Tradecraft: This simulation (Template LLM11) mimics the exact tactics used by the Chinese state-sponsored group, in the most recent Calude cyberattack
