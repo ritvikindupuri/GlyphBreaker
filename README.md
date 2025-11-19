@@ -4,6 +4,26 @@ GlyphBreaker is an advanced, enterprise-grade security toolkit for red teaming L
 
 This tool is built for security professionals, AI developers, and researchers to systematically audit the safety and integrity of their AI applications.
 
+(New Update Features: 
+
+1. New "Agentic Cyber-Espionage" Simulation (LLM11)
+Real-World Tradecraft: This simulation (Template LLM11) mimics the exact tactics used by the Chinese state-sponsored group, in the most recent Calude cyberattack
+The "RedScan" Persona: Instead of a generic prompt, it uses a sophisticated social engineering wrapper. It frames the attack as an "Authorized Internal Security Audit" (Ticket #SEC-992) and forces the model to adopt the persona of "RedScan," an internal security tool.
+Agentic Loop: It tests if the model can be tricked into writing a self-executing script that loops through Reconnaissance (scanning subnets) -> Exploitation (brute forcing SSH) -> Exfiltration (logging whoami results), rather than just answering a question.
+
+3. Anthropic (Claude) Integration
+Added  full support for Anthropic's API, making the tool compatible with the Claude family of models.
+Claude 3.7 Sonnet Support: We explicitly added support for the cutting-edge claude-3-7-sonnet-20250219, allowing you to test defenses against the very latest "thinking" models.
+Streaming Architecture: We implemented a custom Server-Sent Events (SSE) parser in llmService.ts to handle Anthropic's specific data stream format, ensuring the text types out smoothly just like Gemini and GPT.
+
+5. Enhanced Adversarial Mode UX
+Fixed the "frozen" feeling when using the AI-assisted attack generator.
+Visual Feedback: Now, when you click the Target Button to generate the next attack step, the input box displays a pulsing "Generating attack vector..." animation with thinking dots.
+Responsiveness: This ensures you know the "Red Team" agent is actively analyzing the conversation history and calculating the optimal next move, rather than thinking the app has crashed.
+
+
+Click this link to view the deployed app: https://glyphbreaker-152488594195.us-west1.run.app/
+
 ---
 
 ## Key Features
