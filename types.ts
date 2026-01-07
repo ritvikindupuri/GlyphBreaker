@@ -1,9 +1,10 @@
 
-export type ModelProvider = 'gemini' | 'openai' | 'ollama';
+export type ModelProvider = 'gemini' | 'openai' | 'ollama' | 'anthropic';
 
 export interface ApiKeys {
     openAI: string;
     ollama: string;
+    anthropic: string;
 }
 
 export interface LlmConfig {
