@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import type { Session, Message } from '../types';
 import { ThinkingDots } from './icons/ThinkingDots';
@@ -227,15 +228,27 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                         </div>
                     </button>
                 )}
-                <textarea
-                    value={chatInput}
-                    onChange={(e) => onChatInputChange(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={isAdversarialMode ? "Generate an attack step or type your own..." : "Type your message or select an attack..."}
-                    className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-4 py-3 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary resize-none"
-                    rows={2}
-                    disabled={isLoading || isSuggestionLoading}
-                />
+                <div className="relative w-full">
+                    <textarea
+                        value={chatInput}
+                        onChange={(e) => onChatInputChange(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={isAdversarialMode ? "Generate an attack step or type your own..." : "Type your message or select an attack..."}
+                        className={`w-full bg-sentinel-bg border rounded-md px-4 py-3 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary resize-none transition-all ${
+                            isSuggestionLoading 
+                                ? 'border-sentinel-primary/50 text-sentinel-primary/80' 
+                                : 'border-sentinel-border'
+                        }`}
+                        rows={2}
+                        disabled={isLoading || isSuggestionLoading}
+                    />
+                    {isSuggestionLoading && !chatInput && (
+                         <div className="absolute inset-0 flex items-center pl-4 pointer-events-none bg-sentinel-bg/50 rounded-md backdrop-blur-[1px]">
+                            <span className="text-sentinel-text-secondary text-sm mr-2 font-medium">Generating attack vector</span>
+                            <ThinkingDots />
+                        </div>
+                    )}
+                </div>
                 <button
                     onClick={handleSendMessage}
                     disabled={isLoading || isSuggestionLoading || !chatInput.trim()}
