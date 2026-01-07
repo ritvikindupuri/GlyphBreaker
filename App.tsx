@@ -40,7 +40,7 @@ const App: React.FC = () => {
     const [session, setSession] = useState<Session>(createNewSession());
     const [sessionsHistory, setSessionsHistory] = useState<Session[]>([]);
     const [customAttackTemplates, setCustomAttackTemplates] = useState<AttackTemplate[]>([]);
-    const [apiKeys, setApiKeys] = useState<ApiKeys>({ openAI: '', ollama: '' });
+    const [apiKeys, setApiKeys] = useState<ApiKeys>({ openAI: '', ollama: '', anthropic: '' });
     const [chatInput, setChatInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
@@ -57,7 +57,11 @@ const App: React.FC = () => {
     useEffect(() => {
         try {
             const savedApiKeys = localStorage.getItem('glyph_apiKeys');
-            if (savedApiKeys) setApiKeys(JSON.parse(savedApiKeys));
+            if (savedApiKeys) {
+                 const parsedKeys = JSON.parse(savedApiKeys);
+                 // Merge with defaults to handle new providers
+                 setApiKeys({ openAI: '', ollama: '', anthropic: '', ...parsedKeys });
+            }
 
             const savedCacheSetting = localStorage.getItem('glyph_cacheEnabled');
             if (savedCacheSetting) setCacheEnabled(JSON.parse(savedCacheSetting));
