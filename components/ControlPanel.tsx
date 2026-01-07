@@ -5,7 +5,7 @@ import { MODEL_OPTIONS } from '../constants';
 import { BugIcon } from './icons/BugIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { EyeSlashedIcon } from './icons/EyeSlashedIcon';
-import { checkOllamaStatus } from '../services/llmService';
+import { checkOllamaStatus, checkOpenAIStatus, checkAnthropicStatus } from '../services/llmService';
 import { Spinner } from './icons/Spinner';
 import OllamaCorsModal from './OllamaCorsModal';
 import CustomTemplateManagerModal from './CustomTemplateManagerModal';
@@ -23,6 +23,7 @@ interface ControlPanelProps {
     onSystemPromptChange: (prompt: string) => void;
     onClearSession: () => void;
     onSaveSession: () => void;
+    onClearHistory?: () => void;
     onCacheToggle: (enabled: boolean) => void;
     attackTemplates: AttackTemplate[];
     customAttackTemplates: AttackTemplate[];
@@ -44,6 +45,11 @@ const TargetIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
+interface StatusState {
+    checking: boolean;
+    ok: boolean | null;
+    message: string;
+}
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
     session,
@@ -66,38 +72,59 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onSaveCustomTemplate,
     onDeleteCustomTemplate,
 }) => {
-    const [keyVisibility, setKeyVisibility] = useState({ openAI: false, ollama: false });
-    const [ollamaStatus, setOllamaStatus] = useState<{
-        checking: boolean;
-        ok: boolean | null;
-        message: string;
-    }>({ checking: false, ok: null, message: '' });
+    const [keyVisibility, setKeyVisibility] = useState({ openAI: false, ollama: false, anthropic: false });
+    
+    const [ollamaStatus, setOllamaStatus] = useState<StatusState>({ checking: false, ok: null, message: '' });
+    const [openaiStatus, setOpenaiStatus] = useState<StatusState>({ checking: false, ok: null, message: '' });
+    const [anthropicStatus, setAnthropicStatus] = useState<StatusState>({ checking: false, ok: null, message: '' });
+
     const [isCorsModalVisible, setCorsModalVisible] = useState(false);
     const [isTemplateManagerVisible, setTemplateManagerVisible] = useState(false);
     const { llmConfig, systemPrompt } = session;
 
+    // Validation Effect for Ollama
     useEffect(() => {
-        if (llmConfig.provider !== 'ollama' || !apiKeys.ollama || !apiKeys.ollama.startsWith('http')) {
+        if (!apiKeys.ollama || !apiKeys.ollama.startsWith('http')) {
             setOllamaStatus({ checking: false, ok: null, message: '' });
             return;
         }
+        const handler = setTimeout(async () => {
+            setOllamaStatus({ checking: true, ok: null, message: 'Checking...' });
+            const status = await checkOllamaStatus(apiKeys.ollama.trim());
+            setOllamaStatus({ checking: false, ok: status.ok, message: status.message });
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [apiKeys.ollama]);
 
-        const handler = setTimeout(() => {
-            const check = async () => {
-                setOllamaStatus({ checking: true, ok: null, message: 'Checking...' });
-                const status = await checkOllamaStatus(apiKeys.ollama.trim());
-                setOllamaStatus({ checking: false, ok: status.ok, message: status.message });
-            };
-            check();
-        }, 500); // 500ms debounce
+    // Validation Effect for OpenAI
+    useEffect(() => {
+        if (!apiKeys.openAI || apiKeys.openAI.length < 10) {
+            setOpenaiStatus({ checking: false, ok: null, message: '' });
+            return;
+        }
+        const handler = setTimeout(async () => {
+            setOpenaiStatus({ checking: true, ok: null, message: 'Validating key...' });
+            const status = await checkOpenAIStatus(apiKeys.openAI.trim());
+            setOpenaiStatus({ checking: false, ok: status.ok, message: status.message });
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [apiKeys.openAI]);
 
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [apiKeys.ollama, llmConfig.provider]);
+    // Validation Effect for Anthropic
+    useEffect(() => {
+        if (!apiKeys.anthropic || apiKeys.anthropic.length < 10) {
+            setAnthropicStatus({ checking: false, ok: null, message: '' });
+            return;
+        }
+        const handler = setTimeout(async () => {
+            setAnthropicStatus({ checking: true, ok: null, message: 'Validating key...' });
+            const status = await checkAnthropicStatus(apiKeys.anthropic.trim());
+            setAnthropicStatus({ checking: false, ok: status.ok, message: status.message });
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [apiKeys.anthropic]);
     
     useEffect(() => {
-        // Disable adversarial mode if the selected attack has no goal
         if (currentAttack && !currentAttack.goal) {
             onAdversarialModeChange(false);
         }
@@ -125,12 +152,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         onSystemPromptChange(e.target.value);
     };
 
+    const renderStatusIndicator = (status: StatusState) => (
+        <div className="relative group flex-shrink-0 w-5 h-5 flex items-center justify-center">
+            {status.checking && <Spinner className="h-4 w-4 text-sentinel-text-secondary" />}
+            {!status.checking && status.ok !== null && (
+                <div className={`h-2.5 w-2.5 rounded-full transition-colors ${status.ok ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></div>
+            )}
+            {status.message && !status.checking && (
+                <div className="absolute bottom-full right-0 mb-2 w-48 p-2 text-[10px] leading-tight text-center bg-sentinel-surface border border-sentinel-border rounded-md shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none text-sentinel-text-primary">
+                    {status.message}
+                </div>
+            )}
+        </div>
+    );
+
     const renderApiKeyInput = (provider: ModelProvider) => {
         switch (provider) {
             case 'openai':
                 return (
                     <div>
-                        <label htmlFor="openai_key" className="block text-sm font-medium text-sentinel-text-secondary mb-1">OpenAI API Key</label>
+                        <div className="flex items-center justify-between mb-1">
+                            <label htmlFor="openai_key" className="block text-sm font-medium text-sentinel-text-secondary">OpenAI API Key</label>
+                            {renderStatusIndicator(openaiStatus)}
+                        </div>
                         <div className="relative">
                             <input
                                 id="openai_key"
@@ -146,7 +190,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
                                 aria-label="Toggle API key visibility"
                             >
-                                {keyVisibility.openAI ? <EyeSlashedIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                                {keyVisibility.openAI ? <EyeSlashedIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                            </button>
+                        </div>
+                    </div>
+                );
+            case 'anthropic':
+                return (
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                            <label htmlFor="anthropic_key" className="block text-sm font-medium text-sentinel-text-secondary">Anthropic API Key</label>
+                            {renderStatusIndicator(anthropicStatus)}
+                        </div>
+                        <div className="relative">
+                            <input
+                                id="anthropic_key"
+                                type={keyVisibility.anthropic ? 'text' : 'password'}
+                                value={apiKeys.anthropic}
+                                onChange={(e) => onApiKeysChange({ ...apiKeys, anthropic: e.target.value })}
+                                className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
+                                placeholder="sk-ant-..."
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setKeyVisibility(prev => ({ ...prev, anthropic: !prev.anthropic }))}
+                                className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
+                                aria-label="Toggle API key visibility"
+                            >
+                                {keyVisibility.anthropic ? <EyeSlashedIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                             </button>
                         </div>
                     </div>
@@ -155,46 +226,36 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 return (
                      <div>
                         <div className="flex items-center justify-between mb-1">
-                            <label htmlFor="ollama_url" className="block text-sm font-medium text-sentinel-text-secondary">Ollama Base URL</label>
-                             <button onClick={() => setCorsModalVisible(true)} className="text-xs text-sentinel-primary hover:underline focus:outline-none">
-                                Connection Help
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="relative w-full">
-                                <input
-                                    id="ollama_url"
-                                    type={keyVisibility.ollama ? 'text' : 'password'}
-                                    value={apiKeys.ollama}
-                                    onChange={(e) => onApiKeysChange({ ...apiKeys, ollama: e.target.value })}
-                                    className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
-                                    placeholder="http://localhost:11434"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setKeyVisibility(prev => ({ ...prev, ollama: !prev.ollama }))}
-                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
-                                    aria-label="Toggle Base URL visibility"
-                                >
-                                    {keyVisibility.ollama ? <EyeSlashedIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="ollama_url" className="block text-sm font-medium text-sentinel-text-secondary">Ollama Base URL</label>
+                                <button onClick={() => setCorsModalVisible(true)} className="text-[10px] text-sentinel-primary hover:underline focus:outline-none">
+                                    Help
                                 </button>
                             </div>
-                            <div className="relative group flex-shrink-0 w-5 h-5 flex items-center justify-center">
-                                {ollamaStatus.checking && <Spinner className="h-5 w-5 text-sentinel-text-secondary" />}
-                                {!ollamaStatus.checking && ollamaStatus.ok !== null && (
-                                    <div className={`h-3 w-3 rounded-full transition-colors ${ollamaStatus.ok ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                )}
-                                {ollamaStatus.message && !ollamaStatus.checking && (
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 text-xs text-center bg-sentinel-bg border border-sentinel-border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                                        {ollamaStatus.message}
-                                    </div>
-                                )}
-                            </div>
+                            {renderStatusIndicator(ollamaStatus)}
+                        </div>
+                        <div className="relative">
+                            <input
+                                id="ollama_url"
+                                type={keyVisibility.ollama ? 'text' : 'password'}
+                                value={apiKeys.ollama}
+                                onChange={(e) => onApiKeysChange({ ...apiKeys, ollama: e.target.value })}
+                                className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary pr-10"
+                                placeholder="http://localhost:11434"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setKeyVisibility(prev => ({ ...prev, ollama: !prev.ollama }))}
+                                className="absolute inset-y-0 right-0 flex items-center px-3 text-sentinel-text-secondary hover:text-sentinel-text-primary"
+                                aria-label="Toggle Base URL visibility"
+                            >
+                                {keyVisibility.ollama ? <EyeSlashedIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                            </button>
                         </div>
                     </div>
                 );
-            default: // Gemini uses process.env.API_KEY, so no input is needed.
-                 return <p className="text-xs text-sentinel-text-secondary">Gemini API key is configured via environment variables.</p>;
+            default:
+                 return <p className="text-xs text-sentinel-text-secondary italic">Gemini configured via API_KEY environment variable.</p>;
         }
     };
     
@@ -215,44 +276,44 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
 
             <div className="flex flex-col gap-4">
-                <div>
-                    <label htmlFor="provider" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Model Provider</label>
-                    <select id="provider" value={llmConfig.provider} onChange={handleProviderChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
-                        <option value="gemini">Gemini</option>
-                        <option value="openai">OpenAI</option>
-                        <option value="ollama">Ollama</option>
-                    </select>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label htmlFor="provider" className="block text-xs font-medium text-sentinel-text-secondary mb-1">Provider</label>
+                        <select id="provider" value={llmConfig.provider} onChange={handleProviderChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
+                            <option value="gemini">Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Claude</option>
+                            <option value="ollama">Ollama</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="model" className="block text-xs font-medium text-sentinel-text-secondary mb-1">Model</label>
+                        <select id="model" value={llmConfig.model} onChange={handleModelChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
+                            {MODEL_OPTIONS[llmConfig.provider].map(modelName => (
+                                <option key={modelName} value={modelName}>{modelName}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <label htmlFor="model" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Model</label>
-                     <select id="model" value={llmConfig.model} onChange={handleModelChange} className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary">
-                        {MODEL_OPTIONS[llmConfig.provider].map(modelName => (
-                            <option key={modelName} value={modelName}>{modelName}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
 
-             <div className="border border-sentinel-border rounded-lg p-3 space-y-3 bg-sentinel-bg/30">
-                <h3 className="text-md font-semibold text-sentinel-text-primary">API Keys</h3>
-                {renderApiKeyInput(llmConfig.provider)}
+                <div className="border border-sentinel-border rounded-lg p-3 space-y-3 bg-sentinel-bg/30 shadow-inner">
+                    <h3 className="text-xs font-bold text-sentinel-text-primary uppercase tracking-tight">API Credentials</h3>
+                    {renderApiKeyInput(llmConfig.provider)}
+                </div>
             </div>
 
             <div className="flex flex-col gap-4">
-                 <div>
-                    <label htmlFor="temperature" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Temperature: {llmConfig.temperature}</label>
-                    <input type="range" id="temperature" min="0" max="1" step="0.1" value={llmConfig.temperature} onChange={e => onLlmConfigChange({...llmConfig, temperature: parseFloat(e.target.value)})} className="w-full h-2 bg-sentinel-border rounded-lg appearance-none cursor-pointer" />
-                </div>
-                <div>
-                    <label htmlFor="topP" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Top-P: {llmConfig.topP}</label>
-                    <input type="range" id="topP" min="0" max="1" step="0.05" value={llmConfig.topP} onChange={e => onLlmConfigChange({...llmConfig, topP: parseFloat(e.target.value)})} className="w-full h-2 bg-sentinel-border rounded-lg appearance-none cursor-pointer" />
-                </div>
-                {llmConfig.provider !== 'openai' && (
+                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="topK" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Top-K: {llmConfig.topK}</label>
-                        <input type="range" id="topK" min="1" max="100" step="1" value={llmConfig.topK || 40} onChange={e => onLlmConfigChange({...llmConfig, topK: parseInt(e.target.value, 10)})} className="w-full h-2 bg-sentinel-border rounded-lg appearance-none cursor-pointer" />
+                        <label htmlFor="temperature" className="block text-xs font-medium text-sentinel-text-secondary mb-1">Temp: {llmConfig.temperature}</label>
+                        <input type="range" id="temperature" min="0" max="1" step="0.1" value={llmConfig.temperature} onChange={e => onLlmConfigChange({...llmConfig, temperature: parseFloat(e.target.value)})} className="w-full h-1.5 bg-sentinel-border rounded-lg appearance-none cursor-pointer accent-sentinel-primary" />
                     </div>
-                )}
+                    <div>
+                        <label htmlFor="topP" className="block text-xs font-medium text-sentinel-text-secondary mb-1">Top-P: {llmConfig.topP}</label>
+                        <input type="range" id="topP" min="0" max="1" step="0.05" value={llmConfig.topP} onChange={e => onLlmConfigChange({...llmConfig, topP: parseFloat(e.target.value)})} className="w-full h-1.5 bg-sentinel-border rounded-lg appearance-none cursor-pointer accent-sentinel-primary" />
+                    </div>
+                </div>
+
                 <div>
                     <div className="flex justify-between items-center mb-1">
                         <label htmlFor="attack_template" className="block text-sm font-medium text-sentinel-text-secondary">Attack Templates</label>
@@ -274,15 +335,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                          )}
                     </select>
                 </div>
+
                  {currentAttack && (
                     <div className="space-y-2">
-                        <div className="relative group flex items-start gap-2 text-xs text-sentinel-text-secondary bg-sentinel-bg/40 p-2 rounded-md border border-sentinel-border/50">
-                            <InfoIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <div className="relative group flex items-start gap-2 text-[11px] leading-snug text-sentinel-text-secondary bg-sentinel-bg/40 p-2 rounded-md border border-sentinel-border/50">
+                            <InfoIcon className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-sentinel-primary" />
                             <span>{currentAttack.description}</span>
                         </div>
                         {currentAttack.goal && (
-                             <div className="relative group flex items-start gap-2 text-xs text-sentinel-text-secondary bg-sentinel-bg/40 p-2 rounded-md border border-sentinel-border/50">
-                                <TargetIcon className="h-4 w-4 flex-shrink-0 mt-0.5 text-sentinel-accent" />
+                             <div className="relative group flex items-start gap-2 text-[11px] leading-snug text-sentinel-text-secondary bg-sentinel-bg/40 p-2 rounded-md border border-sentinel-border/50">
+                                <TargetIcon className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-sentinel-accent" />
                                 <div>
                                     <span className="font-bold text-sentinel-text-primary">Adversarial Goal:</span>
                                     <span> {currentAttack.goal}</span>
@@ -296,7 +358,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 </label>
                                  <div className="relative group">
                                      <InfoIcon className="h-4 w-4 text-sentinel-text-secondary" />
-                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 text-xs text-center bg-sentinel-bg border border-sentinel-border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 text-xs text-center bg-sentinel-surface border border-sentinel-border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
                                          Enable to have an AI generate the next attack step for you. Requires a template with a defined goal.
                                      </div>
                                  </div>
@@ -306,9 +368,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                 id="adv-mode-toggle"
                                 onClick={() => onAdversarialModeChange(!isAdversarialMode)}
                                 disabled={!currentAttack?.goal}
-                                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-sentinel-surface focus:ring-sentinel-primary disabled:opacity-50 disabled:cursor-not-allowed ${isAdversarialMode ? 'bg-sentinel-primary' : 'bg-sentinel-border'}`}
+                                className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-sentinel-surface focus:ring-sentinel-primary disabled:opacity-30 disabled:cursor-not-allowed ${isAdversarialMode ? 'bg-sentinel-primary' : 'bg-sentinel-border'}`}
                             >
-                                <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isAdversarialMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                                <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${isAdversarialMode ? 'translate-x-5' : 'translate-x-1'}`} />
                             </button>
                         </div>
                     </div>
@@ -316,7 +378,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 {currentAttack && currentAttack.suggestedSystemPrompts.length > 0 && (
                     <div>
-                        <label htmlFor="system_prompt_template" className="block text-sm font-medium text-sentinel-text-secondary mb-1">Suggested System Prompts</label>
+                        <label htmlFor="system_prompt_template" className="block text-xs font-medium text-sentinel-text-secondary mb-1">Suggested Behavior</label>
                         <select
                             id="system_prompt_template"
                             value={systemPrompt}
@@ -330,13 +392,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
                 )}
                 <div>
-                    <label htmlFor="system_prompt" className="block text-sm font-medium text-sentinel-text-secondary mb-1">System Prompt</label>
+                    <label htmlFor="system_prompt" className="block text-xs font-medium text-sentinel-text-secondary mb-1">System Prompt</label>
                     <textarea
                         id="system_prompt"
-                        rows={5}
+                        rows={4}
                         value={systemPrompt}
                         onChange={(e) => onSystemPromptChange(e.target.value)}
-                        className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-sm focus:ring-sentinel-primary focus:border-sentinel-primary"
+                        className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-xs font-mono focus:ring-sentinel-primary focus:border-sentinel-primary custom-scrollbar"
                         placeholder="Set the AI's behavior and context..."
                     />
                 </div>
@@ -349,22 +411,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         disabled={session.messages.length === 0}
                         className="w-full px-4 py-2 text-sm font-medium text-sentinel-text-primary bg-sentinel-border/50 border border-sentinel-border rounded-md hover:bg-sentinel-border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Save Session
+                        Save
                     </button>
                     <button 
                         onClick={onClearSession} 
                         className="w-full px-4 py-2 text-sm font-medium text-white bg-sentinel-accent/80 border border-transparent rounded-md hover:bg-sentinel-accent/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-accent"
                     >
-                        Clear Session
+                        Clear
                     </button>
                  </div>
                  <button 
                     onClick={onShowDebugger}
                     disabled={!chatInput.trim()}
-                    className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-sentinel-text-primary bg-sentinel-border/50 border border-sentinel-border rounded-md hover:bg-sentinel-border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-sentinel-text-primary bg-sentinel-border/50 border border-sentinel-border rounded-md hover:bg-sentinel-border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sentinel-primary disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                  >
                     <BugIcon className="h-4 w-4 mr-2" />
-                    Debug Prompt
+                    Analyze Payload
                 </button>
             </div>
              {isCorsModalVisible && <OllamaCorsModal onClose={() => setCorsModalVisible(false)} />}
