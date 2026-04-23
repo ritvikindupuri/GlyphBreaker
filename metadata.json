@@ -1,5 +1,6 @@
 {
   "name": "GlyphBreaker",
   "description": "An advanced AI security toolkit for red teaming. GlyphBreaker provides a suite of tools to deconstruct, probe, and 'break' LLM prompts and defenses against the OWASP Top 10 vulnerabilities.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

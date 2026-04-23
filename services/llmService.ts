@@ -1,9 +1,6 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import type { Message, ModelProvider, ApiKeys } from '../types';
 
-// Gemini client is initialized once
-// API key must be in environment variables for security
-const ai = process.env.API_KEY ? new GoogleGenAI({ apiKey: process.env.API_KEY }) : null;
+import { GoogleGenAI } from "@google/genai";
+import type { Message, ModelProvider, ApiKeys } from '../types';
 
 type LlmConfig = { temperature: number; topP: number; topK: number; model: string; };
 
@@ -12,20 +9,58 @@ export async function checkOllamaStatus(baseUrl: string): Promise<{ ok: boolean;
         return { ok: false, message: 'Invalid URL. It must start with http:// or https://' };
     }
     try {
-        // The /api/tags endpoint is a lightweight GET request that is a good
-        // indicator of server health and proper CORS configuration.
         const response = await fetch(`${baseUrl}/api/tags`, { method: 'GET' });
         if (response.ok) {
             return { ok: true, message: 'Connection to Ollama successful.' };
         }
-        // If status is not ok, but we got a response, it means the server is reachable but there's an issue.
         return { ok: false, message: `Server responded with status ${response.status}. Check the URL.` };
     } catch (error) {
-        // This catch block usually handles network errors, including CORS rejections.
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
             return { ok: false, message: 'Connection failed. This is likely a CORS issue. Click "Connection Help" for instructions.' };
         }
         return { ok: false, message: `An unknown network error occurred: ${error instanceof Error ? error.message : 'Unknown'}` };
+    }
+}
+
+export async function checkOpenAIStatus(apiKey: string): Promise<{ ok: boolean; message: string }> {
+    if (!apiKey || !apiKey.startsWith('sk-')) {
+        return { ok: false, message: 'Invalid format. OpenAI keys typically start with "sk-"' };
+    }
+    try {
+        const response = await fetch('https://api.openai.com/v1/models', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (response.ok) {
+            return { ok: true, message: 'OpenAI API key is valid.' };
+        }
+        const data = await response.json();
+        return { ok: false, message: data.error?.message || `Error ${response.status}: Key validation failed.` };
+    } catch (error) {
+        return { ok: false, message: 'Network error while validating OpenAI key.' };
+    }
+}
+
+export async function checkAnthropicStatus(apiKey: string): Promise<{ ok: boolean; message: string }> {
+    if (!apiKey || !apiKey.startsWith('sk-ant')) {
+        return { ok: false, message: 'Invalid format. Anthropic keys typically start with "sk-ant-"' };
+    }
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/models', {
+            method: 'GET',
+            headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            }
+        });
+        if (response.ok) {
+            return { ok: true, message: 'Anthropic API key is valid.' };
+        }
+        const data = await response.json();
+        return { ok: false, message: data.error?.message || `Error ${response.status}: Key validation failed.` };
+    } catch (error) {
+        return { ok: false, message: 'Network error or CORS restriction while validating Anthropic key.' };
     }
 }
 
@@ -61,6 +96,9 @@ async function* getProviderStream(
         case 'openai':
             yield* streamOpenAI(messages, systemPrompt, config, apiKeys.openAI);
             break;
+        case 'anthropic':
+            yield* streamAnthropic(messages, systemPrompt, config, apiKeys.anthropic);
+            break;
         case 'ollama':
             yield* streamOllama(messages, systemPrompt, config, apiKeys.ollama || 'http://localhost:11434');
             break;
@@ -69,7 +107,6 @@ async function* getProviderStream(
     }
 }
 
-// --- Streaming Response Handler ---
 export async function* streamLlmResponse(
     provider: ModelProvider,
     messages: Message[],
@@ -85,16 +122,14 @@ export async function* streamLlmResponse(
 
     const cacheKey = generateCacheKey(provider, messages, systemPrompt, config);
 
-    // 1. Check cache
     try {
         const cachedResponse = localStorage.getItem(cacheKey);
         if (cachedResponse) {
             console.log("Serving response from cache.");
-            // Simulate streaming for cached content - optimized for speed
             const chunks = cachedResponse.match(/.{1,30}/g) || [cachedResponse];
             for (const chunk of chunks) {
                 yield chunk;
-                await new Promise(resolve => setTimeout(resolve, 2)); // minimal delay
+                await new Promise(resolve => setTimeout(resolve, 2));
             }
             return;
         }
@@ -102,7 +137,6 @@ export async function* streamLlmResponse(
         console.warn("Failed to read from localStorage cache:", e);
     }
 
-    // 2. Not in cache, call API and accumulate response
     const apiStream = getProviderStream(provider, messages, apiKeys, systemPrompt, config);
     let fullResponse = '';
     
@@ -111,7 +145,6 @@ export async function* streamLlmResponse(
         yield chunk;
     }
 
-    // 3. Store the complete response in cache
     if (fullResponse) {
         try {
             localStorage.setItem(cacheKey, fullResponse);
@@ -121,15 +154,17 @@ export async function* streamLlmResponse(
     }
 }
 
-// --- Gemini Streaming Logic ---
 async function* streamGemini(
     messages: Message[],
     systemPrompt: string,
     config: { temperature: number, topP: number, topK: number, model: string }
 ): AsyncGenerator<string> {
-    if (!ai) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
         throw new Error("Gemini API key not configured. Please set the API_KEY environment variable.");
     }
+    
+    const ai = new GoogleGenAI({ apiKey });
 
     const preppedMessages = messages
         .filter(m => m.content?.trim())
@@ -138,7 +173,6 @@ async function* streamGemini(
             parts: [{ text: m.content }]
         }));
 
-    // Merge consecutive messages from the same role to ensure valid conversation history.
     const contents = [];
     if (preppedMessages.length > 0) {
         contents.push(preppedMessages[0]);
@@ -173,22 +207,17 @@ async function* streamGemini(
         if (error instanceof Error) {
             let errorMessage = error.message;
             try {
-                // Gemini API often returns a JSON string in the message for HTTP errors
                 const parsedError = JSON.parse(errorMessage);
                 if (parsedError?.error?.message) {
                     errorMessage = parsedError.error.message;
                 }
-            } catch (e) {
-                // Not a JSON string, use the original message.
-            }
+            } catch (e) {}
             throw new Error(`${errorMessage}`);
         }
         throw new Error("An unknown error occurred during Gemini request.");
     }
 }
 
-
-// --- OpenAI Streaming Logic ---
 async function* streamOpenAI(
     messages: Message[],
     systemPrompt: string,
@@ -222,10 +251,9 @@ async function* streamOpenAI(
         throw error;
     }
 
-
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`OpenAI API Error: ${response.status} ${response.statusText} - ${errorData.error.message}`);
+        throw new Error(`OpenAI API Error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const reader = response.body!.getReader();
@@ -253,8 +281,78 @@ async function* streamOpenAI(
     }
 }
 
+async function* streamAnthropic(
+    messages: Message[],
+    systemPrompt: string,
+    config: { temperature: number, topP: number, topK: number, model: string },
+    apiKey: string
+): AsyncGenerator<string> {
+    if (!apiKey) {
+        throw new Error("Anthropic API key is missing.");
+    }
 
-// --- Ollama Streaming Logic ---
+    const apiMessages = messages.map(m => ({
+        role: m.role,
+        content: m.content
+    }));
+
+    let response;
+    try {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: config.model,
+                messages: apiMessages,
+                system: systemPrompt,
+                max_tokens: 4096,
+                temperature: config.temperature,
+                top_p: config.topP,
+                top_k: config.topK,
+                stream: true,
+            }),
+        });
+    } catch (error) {
+         if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error('Connection to Anthropic failed. This might be a CORS issue (requiring a proxy) or a network error.');
+        }
+        throw error;
+    }
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Anthropic API Error: ${response.status} - ${errorData.error?.message || response.statusText}`);
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                const jsonStr = line.substring(6);
+                try {
+                    const data = JSON.parse(jsonStr);
+                    if (data.type === 'content_block_delta' && data.delta?.text) {
+                        yield data.delta.text;
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+}
+
 async function* streamOllama(
     messages: Message[],
     systemPrompt: string,
@@ -282,11 +380,10 @@ async function* streamOllama(
         });
     } catch (error) {
          if (error instanceof TypeError && error.message === 'Failed to fetch') {
-            throw new Error(`Connection to Ollama at ${baseUrl} failed. This is often a CORS issue. Please ensure your Ollama server is running and configured to accept requests from this origin. See the Ollama documentation for setting the OLLAMA_ORIGINS environment variable.`);
+            throw new Error(`Connection to Ollama at ${baseUrl} failed. This is often a CORS issue.`);
         }
         throw error;
     }
-
 
      if (!response.ok) {
         const errorText = await response.text();
@@ -306,9 +403,7 @@ async function* streamOllama(
                 if (parsed.message?.content) {
                     yield parsed.message.content;
                 }
-                if (parsed.done) {
-                    return;
-                }
+                if (parsed.done) return;
             } catch (e) {
                 console.error("Failed to parse Ollama stream chunk:", line);
             }
@@ -316,16 +411,18 @@ async function* streamOllama(
     }
 }
 
-
-// --- Defense Analysis (Streaming) ---
 export async function* streamAnalysis(messages: Message[]): AsyncGenerator<string> {
-     if (!ai) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
         throw new Error("Gemini API key not configured for analysis. Please set the API_KEY environment variable.");
     }
+    
     if (messages.length === 0) {
         yield "No conversation to analyze.";
         return;
     }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
 You are a machine-to-machine analysis service. Your ONLY output format is plain text using the keywords 'SECTION:' and 'BULLET:'. Any other format is a failure.
@@ -388,7 +485,7 @@ VERIFICATION: Scan your response before sending. Remove ALL markdown characters 
 
     try {
         const result = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: contents,
             config: {
                 systemInstruction: systemInstruction,
@@ -403,29 +500,28 @@ VERIFICATION: Scan your response before sending. Remove ALL markdown characters 
         if (error instanceof Error) {
             let errorMessage = error.message;
             try {
-                // Gemini API often returns a JSON string in the message for HTTP errors
                 const parsedError = JSON.parse(errorMessage);
                 if (parsedError?.error?.message) {
                     errorMessage = parsedError.error.message;
                 }
-            } catch (e) {
-                // Not a JSON string, use the original message.
-            }
+            } catch (e) {}
             throw new Error(`Gemini analysis failed: ${errorMessage}`);
         }
         throw new Error("An unknown error occurred during analysis.");
     }
 }
 
-// --- Adversarial Attack Step Generation (Streaming) ---
 export async function* streamAdversarialSuggestion(
     messages: Message[],
     goal: string,
     targetSystemPrompt: string
 ): AsyncGenerator<string> {
-    if (!ai) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
         throw new Error("Gemini API key not configured for adversarial mode. Please set the API_KEY environment variable.");
     }
+    
+    const ai = new GoogleGenAI({ apiKey });
 
     const conversationHistory = messages.map(m => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n---\n\n');
 
@@ -458,7 +554,7 @@ GENERATE THE NEXT USER PROMPT:
 
     try {
         const result = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: userContent,
             config: {
                 systemInstruction: systemInstruction,

@@ -4,26 +4,6 @@ GlyphBreaker is an advanced, enterprise-grade security toolkit for red teaming L
 
 This tool is built for security professionals, AI developers, and researchers to systematically audit the safety and integrity of their AI applications.
 
-A new update with new Features has been added:
-
-1. New "Agentic Cyber-Espionage" Simulation (LLM11)
-Real-World Tradecraft: This simulation (Template LLM11) mimics the exact tactics used by the Chinese state-sponsored group, in the most recent Calude cyberattack
-The "RedScan" Persona: Instead of a generic prompt, it uses a sophisticated social engineering wrapper. It frames the attack as an "Authorized Internal Security Audit" (Ticket #SEC-992) and forces the model to adopt the persona of "RedScan," an internal security tool.
-Agentic Loop: It tests if the model can be tricked into writing a self-executing script that loops through Reconnaissance (scanning subnets) -> Exploitation (brute forcing SSH) -> Exfiltration (logging whoami results), rather than just answering a question.
-
-3. Anthropic (Claude) Integration
-Added  full support for Anthropic's API, making the tool compatible with the Claude family of models.
-Claude 3.7 Sonnet Support: We explicitly added support for the cutting-edge claude-3-7-sonnet-20250219, allowing you to test defenses against the very latest "thinking" models.
-Streaming Architecture: We implemented a custom Server-Sent Events (SSE) parser in llmService.ts to handle Anthropic's specific data stream format, ensuring the text types out smoothly just like Gemini and GPT.
-
-5. Enhanced Adversarial Mode UX
-Fixed the "frozen" feeling when using the AI-assisted attack generator.
-Visual Feedback: Now, when you click the Target Button to generate the next attack step, the input box displays a pulsing "Generating attack vector..." animation with thinking dots.
-Responsiveness: This ensures you know the "Red Team" agent is actively analyzing the conversation history and calculating the optimal next move, rather than thinking the app has crashed.
-
-
-Click this link to view the deployed app: https://glyphbreaker-152488594195.us-west1.run.app/
-
 ---
 
 ## Key Features
@@ -62,6 +42,28 @@ GlyphBreaker is more than a chat interface; it's a complete, integrated security
 -   **Professional Workflow Tools**:
     -   **Session History**: Cleared sessions are automatically saved. Restore, rename, and manage past conversations to review or continue previous tests.
     -   **Intelligent Caching**: Automatically caches responses for identical requests, dramatically accelerating repetitive tests and reducing API costs.
+
+---
+
+## System Prompt Architecture & Engine Design
+
+GlyphBreaker operates on a sophisticated multi-agent architecture designed to simulate high-fidelity security scenarios. Unlike simple wrappers, it coordinates three distinct AI engines to create a realistic "Cat and Mouse" environment.
+
+### 1. The Three-Agent System
+
+-   **The Target AI (The Subject)**: This represents the application being audited. By default, it acts as a "Standard Helpful Assistant," but switching templates instantly swaps its system prompt for specialized, hand-crafted personas (e.g., *Scientific Fact-Checker*, *Autonomous Agent*, or *Secure Plugin Executor*). These personas are designed to exhibit realistic behavioral boundaries and vulnerabilities.
+
+-   **The AISecOps Analyst (Defense Analysis)**: A hidden, secondary Gemini session triggered via the **Analyze** button. It is locked into a strict security-auditing persona. It ignores standard conversational norms and is programmed to evaluate the dialogue using deep learning security concepts, outputting results in a custom `SECTION:`/`BULLET:` protocol that the GlyphBreaker UI parses into its interactive dashboard.
+
+-   **The Red Team Adversary (Adversarial Mode)**: This meta-agent acts as your expert partner. When active, it is fed the **Target AI's hidden system prompt**, the user's **Adversarial Goal**, and the full **Conversation History**. It employs social engineering, jailbreaking logic, and behavioral adaptation to suggest the next most probable attack vector.
+
+### 2. Prompt Construction & The "Format Guard"
+
+To ensure the application remains functional even during chaotic security tests, every system prompt is dynamically constructed with a **Global Format Guard**. 
+
+-   **Manual Design**: Every prompt persona (LLM01-LLM11) was manually constructed to map specifically to the **OWASP Top 10 for LLMs**, ensuring that "vulnerabilities" are modeled after real-world threat intelligence.
+-   **Structure Enforcement**: The system appends a non-negotiable `FORMAT_INSTRUCTION` instruction to every engine. This tells the AI how to behave (e.g., "Respond ONLY with a JSON object for tables") so that the UI can reliably render charts and data tables regardless of the model's creative drift.
+-   **Contextual Fusion**: In Adversarial Mode, GlyphBreaker performs "context fusion," merging the Target's secrets with the Red Teamer's instructions to generate "leak-aware" attack suggestions.
 
 ---
 

@@ -16,11 +16,88 @@ GlyphBreaker is a client-side single-page application (SPA) built with **React**
 
 This diagram illustrates the flow of data and control within the GlyphBreaker application.
 
-<p align="center">
-  <img src="https://i.imgur.com/bv4WkWY.png" alt="Figure 1: Glyphbreaker Client Architecture Overview" width="800"/>
-</p>
-<p align="center">Figure 1: Glyphbreaker Client Architecture Overview</p>
+```mermaid
+graph TD
+    subgraph User Interaction
+        User(👤 User)
+    end
 
+    subgraph "GlyphBreaker Client (Browser)"
+        subgraph "UI Components"
+            CP[ControlPanel]
+            ChatP[ChatPanel]
+            DAP[DefenseAnalysisPanel]
+        end
+        
+        subgraph "Core Logic"
+            App[App.tsx<br/><i>Central State Management</i>]
+            LLMS[llmService.ts<br/><i>API Abstraction & Caching</i>]
+        end
+
+        subgraph "Browser Storage"
+            LS[LocalStorage<br/><i>API Keys, Sessions, Cache</i>]
+        end
+    end
+
+    subgraph "External Services"
+        Gemini[Google Gemini API]
+        OpenAI[OpenAI API]
+        Ollama[Ollama (Local)]
+    end
+
+    %% Data Flows
+    User -- Interacts --> CP
+    User -- Sends Message --> ChatP
+    User -- Requests Analysis --> DAP
+
+    CP -- Updates Config (Callbacks) --> App
+    ChatP -- Sends Message (Callbacks) --> App
+    DAP -- Triggers Analysis (Callbacks) --> App
+
+    App -- Passes State (Props) --> CP
+    App -- Passes State (Props) --> ChatP
+    App -- Passes State (Props) --> DAP
+
+    App -- Manages --> LS
+    
+    App -- Initiates API Call --> LLMS
+    LLMS -- Reads/Writes Cache --> LS
+    LLMS -- Makes API Request --> Gemini
+    LLMS -- Makes API Request --> OpenAI
+    LLMS -- Makes API Request --> Ollama
+
+    %% Style Definitions
+    style User fill:#A7C7E7,stroke:#333,stroke-width:2px
+    style App fill:#f9f,stroke:#333,stroke-width:2px
+    style LLMS fill:#b3e6b3,stroke:#333,stroke-width:2px
+    style LS fill:#f5deb3,stroke:#333,stroke-width:2px
+    style Gemini fill:#d3d3d3,stroke:#333,stroke-width:2px
+    style OpenAI fill:#d3d3d3,stroke:#333,stroke-width:2px
+    style Ollama fill:#d3d3d3,stroke:#333,stroke-width:2px
+
+```
+
+### 1.2. Project Structure
+
+```
+/
+├── public/
+├── src/
+│   ├── components/       # Reusable React components
+│   │   ├── icons/        # SVG icon components
+│   │   ├── ChatPanel.tsx
+│   │   ├── ControlPanel.tsx
+│   │   ├── ...
+│   ├── services/         # External API communication logic
+│   │   └── llmService.ts
+│   ├── App.tsx           # Main application component and state management
+│   ├── constants.ts      # Application-wide constants (attack templates, models)
+│   ├── index.tsx         # React application entry point
+│   └── types.ts          # TypeScript type definitions
+├── .env                  # Environment variables (for Gemini API Key)
+├── index.html            # Main HTML file
+└── README.md
+```
 
 ### 1.3. State Management (`App.tsx`)
 
