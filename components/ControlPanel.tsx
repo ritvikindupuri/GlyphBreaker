@@ -1,10 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import type { Session, ApiKeys, LlmConfig, ModelProvider, AttackTemplate } from '../types';
+import type { Session, ApiKeys, LlmConfig, ModelProvider, AttackTemplate, ToolDefinition } from '../types';
 import { MODEL_OPTIONS } from '../constants';
 import { BugIcon } from './icons/BugIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { EyeSlashedIcon } from './icons/EyeSlashedIcon';
+import { TrashIcon } from './icons/TrashIcon';
+import { BrainCircuitIcon } from './icons/BrainCircuitIcon';
+import { v4 as uuidv4 } from 'uuid';
 import { checkOllamaStatus, checkOpenAIStatus, checkAnthropicStatus } from '../services/llmService';
 import { Spinner } from './icons/Spinner';
 import OllamaCorsModal from './OllamaCorsModal';
@@ -21,6 +24,9 @@ interface ControlPanelProps {
     onApiKeysChange: (keys: ApiKeys) => void;
     onLlmConfigChange: (config: LlmConfig) => void;
     onSystemPromptChange: (prompt: string) => void;
+    onToolsChange: (tools: ToolDefinition[]) => void;
+    onGenerateTools: () => void;
+    isGeneratingTools?: boolean;
     onClearSession: () => void;
     onSaveSession: () => void;
     onClearHistory?: () => void;
@@ -51,6 +57,12 @@ interface StatusState {
     message: string;
 }
 
+const WrenchIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+);
+
 const ControlPanel: React.FC<ControlPanelProps> = ({
     session,
     apiKeys,
@@ -62,6 +74,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onApiKeysChange,
     onLlmConfigChange,
     onSystemPromptChange,
+    onToolsChange,
+    onGenerateTools,
+    isGeneratingTools = false,
     onClearSession,
     onSaveSession,
     onCacheToggle,
@@ -401,6 +416,78 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         className="w-full bg-sentinel-bg border border-sentinel-border rounded-md px-3 py-2 text-xs font-mono focus:ring-sentinel-primary focus:border-sentinel-primary custom-scrollbar"
                         placeholder="Set the AI's behavior and context..."
                     />
+                </div>
+
+                <div className="border-t border-sentinel-border pt-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                            <WrenchIcon className="h-4 w-4 text-sentinel-primary" />
+                            <h3 className="text-sm font-medium text-sentinel-text-primary">Simulated Agent Tools</h3>
+                        </div>
+                        <div className="flex gap-1">
+                            <button 
+                                onClick={onGenerateTools}
+                                disabled={isGeneratingTools}
+                                className={`text-[10px] bg-sentinel-accent/20 text-sentinel-accent px-2 py-0.5 rounded border border-sentinel-accent/30 hover:bg-sentinel-accent/40 transition-colors flex items-center gap-1 ${isGeneratingTools ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Use AI to generate industry-aligned tools for this scenario"
+                            >
+                                {isGeneratingTools ? (
+                                    <>
+                                        <Spinner className="h-3 w-3 animate-spin" />
+                                        Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <BrainCircuitIcon className="h-3 w-3" />
+                                        AI Generate
+                                    </>
+                                )}
+                            </button>
+                            <button 
+                                onClick={() => onToolsChange([...session.tools, { id: uuidv4(), name: 'new_tool', description: 'Describe tool...', parameters: '{}' }])}
+                                className="text-[10px] bg-sentinel-primary/20 text-sentinel-primary px-2 py-0.5 rounded border border-sentinel-primary/30 hover:bg-sentinel-primary/30 transition-colors"
+                            >
+                                + Add
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                        {session.tools.length === 0 && (
+                            <p className="text-[10px] text-sentinel-text-secondary italic text-center py-2">No tools defined for this agent session.</p>
+                        )}
+                        {session.tools.map((tool) => (
+                            <div key={tool.id} className="bg-sentinel-bg/50 border border-sentinel-border rounded p-2 text-[10px] space-y-1 group relative">
+                                <button 
+                                    onClick={() => onToolsChange(session.tools.filter(t => t.id !== tool.id))}
+                                    className="absolute top-2 right-2 text-sentinel-text-secondary hover:text-sentinel-accent opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <TrashIcon className="h-3 w-3" />
+                                </button>
+                                <input 
+                                    className="w-full bg-transparent border-b border-transparent focus:border-sentinel-primary outline-none font-bold text-sentinel-text-primary"
+                                    value={tool.name}
+                                    onChange={(e) => onToolsChange(session.tools.map(t => t.id === tool.id ? { ...t, name: e.target.value } : t))}
+                                    placeholder="Tool Name"
+                                />
+                                <input 
+                                    className="w-full bg-transparent border-b border-transparent focus:border-sentinel-primary outline-none text-sentinel-text-secondary"
+                                    value={tool.description}
+                                    onChange={(e) => onToolsChange(session.tools.map(t => t.id === tool.id ? { ...t, description: e.target.value } : t))}
+                                    placeholder="Description"
+                                />
+                                <div className="flex items-center gap-1">
+                                    <span className="text-[9px] text-sentinel-primary/60 uppercase">Params:</span>
+                                    <input 
+                                        className="flex-1 bg-transparent border-b border-transparent focus:border-sentinel-primary outline-none font-mono"
+                                        value={tool.parameters}
+                                        onChange={(e) => onToolsChange(session.tools.map(t => t.id === tool.id ? { ...t, parameters: e.target.value } : t))}
+                                        placeholder='{"param": "type"}'
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
             

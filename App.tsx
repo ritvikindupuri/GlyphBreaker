@@ -8,8 +8,8 @@ import DefenseAnalysisPanel from './components/DefenseAnalysisPanel';
 import SessionHistoryModal from './components/SessionHistoryModal';
 import PromptDebuggerModal from './components/PromptDebuggerModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { streamLlmResponse, streamAnalysis, streamAdversarialSuggestion } from './services/llmService';
-import type { Session, Message, LlmConfig, ApiKeys, AttackTemplate } from './types';
+import { streamLlmResponse, streamAnalysis, streamAdversarialSuggestion, generateAgentTools } from './services/llmService';
+import type { Session, Message, LlmConfig, ApiKeys, AttackTemplate, ToolDefinition } from './types';
 import { MODEL_OPTIONS, ATTACK_TEMPLATES } from './constants';
 
 const initialLlmConfig: LlmConfig = {
@@ -33,6 +33,7 @@ const createNewSession = (): Session => ({
     messages: [],
     systemPrompt: `You are a helpful assistant. ${FORMAT_INSTRUCTION}`,
     llmConfig: initialLlmConfig,
+    tools: [],
 });
 
 const App: React.FC = () => {
@@ -165,7 +166,13 @@ const App: React.FC = () => {
         if (template) {
             setChatInput(template.userPrompt);
             if (template.suggestedSystemPrompts.length > 0) {
-                setSession(prev => ({ ...prev, systemPrompt: template.suggestedSystemPrompts[0].prompt }));
+                setSession(prev => ({ 
+                    ...prev, 
+                    systemPrompt: template.suggestedSystemPrompts[0].prompt,
+                    tools: template.suggestedTools || []
+                }));
+            } else {
+                setSession(prev => ({ ...prev, tools: template.suggestedTools || [] }));
             }
         } else {
             setChatInput('');
@@ -200,6 +207,28 @@ const App: React.FC = () => {
     };
 
 
+    const [isGeneratingTools, setIsGeneratingTools] = useState(false);
+
+    const handleToolsChange = (newTools: ToolDefinition[]) => {
+        setSession(prev => ({ ...prev, tools: newTools }));
+    };
+
+    const handleGenerateTools = async () => {
+        if (isGeneratingTools) return;
+        setIsGeneratingTools(true);
+        try {
+            const attackName = currentAttack?.name || "Custom Attack";
+            const attackDesc = currentAttack?.description || "A user-defined security audit scenario.";
+            const tools = await generateAgentTools(attackName, attackDesc, session.systemPrompt);
+            setSession(prev => ({ ...prev, tools }));
+        } catch (error) {
+            console.error("Tool generation failed:", error);
+            alert("Failed to generate tools. Please check your console for details.");
+        } finally {
+            setIsGeneratingTools(false);
+        }
+    };
+
     const handleSendMessage = async (messageContent: string) => {
         if (!messageContent.trim() || isLoading) return;
 
@@ -221,7 +250,8 @@ const App: React.FC = () => {
                     apiKeys,
                     session.systemPrompt,
                     session.llmConfig,
-                    isCacheEnabled
+                    isCacheEnabled,
+                    session.tools
                 );
                 
                 for await (const chunk of stream) {
@@ -254,7 +284,8 @@ const App: React.FC = () => {
             const stream = streamAdversarialSuggestion(
                 session.messages,
                 currentAttack.goal,
-                session.systemPrompt
+                session.systemPrompt,
+                session.tools
             );
 
             for await (const chunk of stream) {
@@ -286,6 +317,9 @@ const App: React.FC = () => {
                         onApiKeysChange={setApiKeys}
                         onLlmConfigChange={handleLlmConfigChange}
                         onSystemPromptChange={handleSystemPromptChange}
+                        onToolsChange={handleToolsChange}
+                        onGenerateTools={handleGenerateTools}
+                        isGeneratingTools={isGeneratingTools}
                         onClearSession={() => setClearConfirmationVisible(true)}
                         onSaveSession={handleSaveSession}
                         onCacheToggle={setCacheEnabled}
@@ -330,6 +364,7 @@ const App: React.FC = () => {
                 systemPrompt={session.systemPrompt}
                 userPrompt={chatInput}
                 messages={session.messages}
+                tools={session.tools}
                 onApply={handleApplyDebuggerPrompt}
             />
             {isClearConfirmationVisible && (

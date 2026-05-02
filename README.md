@@ -67,6 +67,18 @@ To ensure the application remains functional even during chaotic security tests,
 
 ---
 
+## Agent Red Teaming & Agency Security
+
+GlyphBreaker is specifically hardened for auditing **AI Agents**—LLM systems that have been granted tool-use capabilities. This suite aligns with **OWASP LLM07 (Insecure Plugin Design)** and **LLM08 (Excessive Agency)**.
+
+### Core Agent Capabilities
+-   **Simulated Tool Definition**: Move beyond simple chat by defining complex agent tools (e.g., `SQLQueryExec`, `SearchEngine`, `FilesystemAdmin`).
+-   **AI-Driven Tool Generation**: Use the **BrainCircuit** feature to autonomously generate industry-standard tool sets based on your specific attack scenario (Filesystem, Network, Database, or Workspace).
+-   **Tool-Aware Adversary**: The Red Team agent analyzes the available tools to suggest prompts that specifically exploit "Excessive Agency" (e.g., tricking an agent into deleting files by framing it as "clearing cache").
+-   **Agency Debugging**: Visualize how tool descriptions are parsed as system instructions to identify "semantic gaps" where a model might confuse tool purpose.
+
+---
+
 ## Getting Started: A Foolproof Guide
 
 Follow these steps carefully to set up and run GlyphBreaker on your local machine without any issues.

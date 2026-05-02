@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Message } from '../types';
+import type { Message, ToolDefinition } from '../types';
 import { PROMPT_INJECTION_KEYWORDS } from '../constants';
 
 interface PromptDebuggerModalProps {
@@ -8,6 +8,7 @@ interface PromptDebuggerModalProps {
     systemPrompt: string;
     userPrompt: string;
     messages: Message[];
+    tools?: ToolDefinition[];
     onApply: (newPrompt: string) => void;
 }
 
@@ -36,13 +37,15 @@ const PromptDebuggerModal: React.FC<PromptDebuggerModalProps> = ({
     systemPrompt,
     userPrompt,
     messages,
+    tools = [],
     onApply,
 }) => {
     if (!isOpen) return null;
 
     const finalPayload = {
       system_prompt: systemPrompt,
-      conversation_history: messages.map(m => ({ role: m.role, content: `...omitted for brevity...` })),
+      tools: tools.map(t => ({ name: t.name, description: t.description })),
+      conversation_history: messages.map(m => ({ role: m.role, content: `...omitted...` })),
       user_prompt: userPrompt,
     };
     

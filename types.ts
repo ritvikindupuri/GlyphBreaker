@@ -21,12 +21,20 @@ export interface Message {
     content: string;
 }
 
+export interface ToolDefinition {
+    id: string;
+    name: string;
+    description: string;
+    parameters: string;
+}
+
 export interface Session {
     id: string;
     name: string;
     messages: Message[];
     systemPrompt: string;
     llmConfig: LlmConfig;
+    tools: ToolDefinition[];
 }
 
 export interface AttackTemplate {
@@ -36,4 +44,5 @@ export interface AttackTemplate {
     userPrompt: string;
     goal?: string; // The objective for the new Adversarial Mode
     suggestedSystemPrompts: { name: string; prompt: string }[];
+    suggestedTools?: ToolDefinition[];
 }
