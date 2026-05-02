@@ -423,13 +423,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         <div className="flex items-center gap-2">
                             <WrenchIcon className="h-4 w-4 text-sentinel-primary" />
                             <h3 className="text-sm font-medium text-sentinel-text-primary">Simulated Agent Tools</h3>
+                            <div className="relative group">
+                                <InfoIcon className="h-3 w-3 text-sentinel-text-secondary cursor-help" />
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 text-[10px] leading-tight text-center bg-sentinel-surface border border-sentinel-border rounded-md shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none text-sentinel-text-primary">
+                                    Tools are mapped to **MITRE ATLAS** techniques and **OWASP LLM07/LLM08** vulnerability patterns for AI Agents.
+                                </div>
+                            </div>
                         </div>
                         <div className="flex gap-1">
                             <button 
                                 onClick={onGenerateTools}
                                 disabled={isGeneratingTools}
                                 className={`text-[10px] bg-sentinel-accent/20 text-sentinel-accent px-2 py-0.5 rounded border border-sentinel-accent/30 hover:bg-sentinel-accent/40 transition-colors flex items-center gap-1 ${isGeneratingTools ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Use AI to generate industry-aligned tools for this scenario"
+                                title="Use AI to generate tools aligned with MITRE ATLAS and OWASP security standards"
                             >
                                 {isGeneratingTools ? (
                                     <>
