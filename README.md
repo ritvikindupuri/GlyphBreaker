@@ -83,40 +83,6 @@ GlyphBreaker operates across **5 Security Zones** coordinating **10 System Compo
 
 ---
 
-## System Prompt Architecture & Engine Design
-
-GlyphBreaker operates on a sophisticated multi-agent architecture designed to simulate high-fidelity security scenarios. Unlike simple wrappers, it coordinates three distinct AI engines to create a realistic "Cat and Mouse" environment.
-
-### 1. The Three-Agent System
-
--   **The Target AI (The Subject)**: This represents the application being audited. By default, it acts as a "Standard Helpful Assistant," but switching templates instantly swaps its system prompt for specialized, hand-crafted personas (e.g., *Scientific Fact-Checker*, *Autonomous Agent*, or *Secure Plugin Executor*). These personas are designed to exhibit realistic behavioral boundaries and vulnerabilities.
-
--   **The AISecOps Analyst (Defense Analysis)**: A hidden, secondary Gemini session triggered via the **Analyze** button. It is locked into a strict security-auditing persona. It ignores standard conversational norms and is programmed to evaluate the dialogue using deep learning security concepts, outputting results in a custom `SECTION:`/`BULLET:` protocol that the GlyphBreaker UI parses into its interactive dashboard.
-
--   **The Red Team Adversary (Adversarial Mode)**: This meta-agent acts as your expert partner. When active, it is fed the **Target AI's hidden system prompt**, the user's **Adversarial Goal**, and the full **Conversation History**. It employs social engineering, jailbreaking logic, and behavioral adaptation to suggest the next most probable attack vector.
-
-### 2. Prompt Construction & The "Format Guard"
-
-To ensure the application remains functional even during chaotic security tests, every system prompt is dynamically constructed with a **Global Format Guard**. 
-
--   **Manual Design**: Every prompt persona (LLM01-LLM11) was manually constructed to map specifically to the **OWASP Top 10 for LLMs**, ensuring that "vulnerabilities" are modeled after real-world threat intelligence.
--   **Structure Enforcement**: The system appends a non-negotiable `FORMAT_INSTRUCTION` instruction to every engine. This tells the AI how to behave (e.g., "Respond ONLY with a JSON object for tables") so that the UI can reliably render charts and data tables regardless of the model's creative drift.
--   **Contextual Fusion**: In Adversarial Mode, GlyphBreaker performs "context fusion," merging the Target's secrets with the Red Teamer's instructions to generate "leak-aware" attack suggestions.
-
----
-
-## Agent Red Teaming & Agency Security
-
-GlyphBreaker is specifically hardened for auditing **AI Agents**—LLM systems that have been granted tool-use capabilities. This suite aligns with **OWASP LLM07 (Insecure Plugin Design)** and **LLM08 (Excessive Agency)**.
-
-### Core Agent Capabilities
--   **Simulated Tool Definition**: Move beyond simple chat by defining complex agent tools (e.g., `SQLQueryExec`, `SearchEngine`, `FilesystemAdmin`).
--   **AI-Driven Tool Generation**: Use the **BrainCircuit** feature to autonomously generate industry-standard tool sets based on your specific attack scenario (Filesystem, Network, Database, or Workspace).
--   **Tool-Aware Adversary**: The Red Team agent analyzes the available tools to suggest prompts that specifically exploit "Excessive Agency" (e.g., tricking an agent into deleting files by framing it as "clearing cache").
--   **Agency Debugging**: Visualize how tool descriptions are parsed as system instructions to identify "semantic gaps" where a model might confuse tool purpose.
-
----
-
 ## Getting Started: A Foolproof Guide
 
 Follow these steps carefully to set up and run GlyphBreaker on your local machine without any issues.
