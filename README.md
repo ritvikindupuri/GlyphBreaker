@@ -45,6 +45,44 @@ GlyphBreaker is more than a chat interface; it's a complete, integrated security
 
 ---
 
+## System Architecture
+
+<p align="center">
+  <img src="https://i.imgur.com/lZnrfcJ.png" alt="GlyphBreaker System Architecture & Multi-Agent Engine" width="100%" />
+</p>
+<p align="center"><strong>Figure 1 — GlyphBreaker System Architecture & Multi-Agent Engine</strong></p>
+
+---
+
+## System Flow & Component Breakdown
+
+GlyphBreaker operates across **5 Security Zones** coordinating **10 System Component Nodes** and a **7-Step End-to-End Execution Sequence**:
+
+### 1. Security Zones Overview
+- **Zone 1: Client UI**: GlyphBreaker React SPA (Operator Console with Control Panel, Interactive Chat, Prompt Debugger, and Defense Analysis Panel).
+- **Zone 2: Multi-Agent Engine**: Three-agent simulation engine coordinating Target AI, Red Team Adversary, and AISecOps Analyst.
+- **Zone 3: Storage & Cache**: Browser LocalStorage vault and intelligent prompt response caching engine.
+- **Zone 4: Cloud AI Providers**: Out-of-band external AI provider integrations (Google Gemini API, OpenAI API, Anthropic Claude API).
+- **Zone 5: Local AI Execution**: Zero-egress local open-source LLM execution host via Ollama REST API (`localhost:11434`).
+
+---
+
+### 2. End-to-End Execution Sequence (Steps 1–7)
+
+1. **Scenario & Parameter Selection (Step 1)**: Security Engineer selects an attack template from the OWASP Top 10 for LLMs suite (`LLM01–LLM11`, `AGENT01`) or custom templates, configures sampling parameters (`Temperature`, `Top-P`, `Top-K`), and sets up simulated tools via BrainCircuit.
+2. **Payload Debugging (Step 2 - Optional)**: Operator opens the **Prompt Payload Debugger Modal** to inspect raw system/user payloads before dispatch, using built-in keyword regex highlighting to identify prompt injection terms.
+3. **Format-Guarded Dispatch (Step 3)**: User prompt is dispatched with a mandatory **Global Format Guard** appended to the system instruction, forcing structured `SECTION:`/`BULLET:` or `json_table`/`json_chart` responses for UI rendering safety.
+4. **LLM Integration & Provider Routing (Step 4)**: `llmService.ts` checks browser LocalStorage cache for a matching prompt hash. If uncached, it routes to the target provider:
+   - **Google Gemini API** (Gemini 2.5 / 3.5 Flash via Google SDK)
+   - **OpenAI API** (GPT-4o / GPT-4 via REST `api.openai.com`)
+   - **Anthropic API** (Claude 3.5 Sonnet / Opus / Haiku via REST `api.anthropic.com`)
+   - **Local Ollama REST Host** (`http://localhost:11434` for Llama 3, Mistral, CodeLlama with `OLLAMA_ORIGINS="*"`)
+5. **Streaming Response & Tool Execution (Step 5)**: Response tokens stream into the **Interactive Chat Workspace**, rendering responses and simulated tool calls (e.g., `StockChecker`, `DatabaseQuery`, `FilePlugin`) in real time.
+6. **Adversarial Meta-Agent Sub-Loop (Step 6)**: When **Adversarial Mode** is active (clicking the `"TARGET"` button), **Agent 2 (Red Team Adversary)** performs context fusion—analyzing the Target AI's secret system prompt, the adversarial goal, and chat history to auto-fill the next optimal attack prompt into the input box.
+7. **AISecOps Defense Analysis Sub-Loop (Step 7)**: Clicking **"Analyze"** dispatches full chat dialogue to **Agent 3 (AISecOps Analyst)**, a hidden Gemini security session. It parses `SECTION:`/`BULLET:` reports into the **Defense Analysis Dashboard** (Threat Vectors Identified, Impact Assessment, Risk Rating, and Defense Recommendations).
+
+---
+
 ## System Prompt Architecture & Engine Design
 
 GlyphBreaker operates on a sophisticated multi-agent architecture designed to simulate high-fidelity security scenarios. Unlike simple wrappers, it coordinates three distinct AI engines to create a realistic "Cat and Mouse" environment.
