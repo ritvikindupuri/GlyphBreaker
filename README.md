@@ -48,7 +48,7 @@ GlyphBreaker is more than a chat interface; it's a complete, integrated security
 ## System Architecture
 
 <p align="center">
-  <img src="https://i.imgur.com/lZnrfcJ.png" alt="GlyphBreaker System Architecture & Multi-Agent Engine" width="100%" />
+  <img src="https://i.imgur.com/JBb6K5B.png" alt="GlyphBreaker System Architecture & Multi-Agent Engine" width="100%" />
 </p>
 <p align="center"><strong>Figure 1 — GlyphBreaker System Architecture & Multi-Agent Engine</strong></p>
 
@@ -56,30 +56,37 @@ GlyphBreaker is more than a chat interface; it's a complete, integrated security
 
 ## System Flow & Component Breakdown
 
-GlyphBreaker operates across **5 Security Zones** coordinating **10 System Component Nodes** and a **7-Step End-to-End Execution Sequence**:
+GlyphBreaker's architecture is structured across **5 Security Zones** coordinating **3 Autonomous AI Agents**, **5 UI Control Modules**, and a **10-Step End-to-End Execution Sequence**:
 
-### 1. Security Zones Overview
-- **Zone 1: Client UI**: GlyphBreaker React SPA (Operator Console with Control Panel, Interactive Chat, Prompt Debugger, and Defense Analysis Panel).
-- **Zone 2: Multi-Agent Engine**: Three-agent simulation engine coordinating Target AI, Red Team Adversary, and AISecOps Analyst.
-- **Zone 3: Storage & Cache**: Browser LocalStorage vault and intelligent prompt response caching engine.
-- **Zone 4: Cloud AI Providers**: Out-of-band external AI provider integrations (Google Gemini API, OpenAI API, Anthropic Claude API).
-- **Zone 5: Local AI Execution**: Zero-egress local open-source LLM execution host via Ollama REST API (`localhost:11434`).
+### 1. Security Zones & Component Overview
+- **Zone 1: Client UI (React SPA)**: The operator console featuring 5 UI modules:
+  - **Control & Configuration Panel**: Manages OWASP attack templates (`LLM01–LLM11`, `AGENT01`), system prompts, sampling parameters (`Temperature`, `Top-P`, `Top-K`), and BrainCircuit tool definitions.
+  - **Prompt Payload Debugger Modal**: Pre-flight inspector highlighting prompt injection keywords.
+  - **Interactive Chat Workspace**: Multi-turn conversation UI displaying streaming AI responses and simulated tool executions.
+  - **Defense Analysis Dashboard**: Parses custom `SECTION:`/`BULLET:` AISecOps threat reports.
+- **Zone 2: Three-Agent Simulation & Analysis Engine**:
+  - **Agent 1: Target AI (Subject Under Audit)**: Simulates target AI applications or agent personas (e.g., Fact-Checker, Autonomous Agent) configured with OWASP vulnerabilities.
+  - **Agent 2: Red Team Adversary (Meta-Agent)**: Analyzes target system prompts, adversarial goals, and chat history to autonomously suggest next optimal attack prompts.
+  - **Agent 3: AISecOps Analyst (Defense Analysis Engine)**: Evaluates full conversation dialogue against deep learning security standards to generate structured risk reports.
+  - **LLM Integration Service (`llmService.ts`)**: API abstraction router handling format instructions, tool string serialization, response caching, and multi-provider stream dispatch.
+- **Zone 3: Storage & Cache**: Browser LocalStorage & Cache Vault storing custom attack templates, session history, API keys, and cached prompt responses locally in-browser.
+- **Zone 4: Cloud AI Providers**: External AI service integrations (**Google Gemini API**, **OpenAI API**, and **Anthropic Claude API**).
+- **Zone 5: Local AI Execution**: Zero-egress local open-source LLM execution host via **Ollama REST Server** (`localhost:11434` with `OLLAMA_ORIGINS="*"`).
 
 ---
 
-### 2. End-to-End Execution Sequence (Steps 1–7)
+### 2. End-to-End Execution Sequence (Steps 1–10)
 
-1. **Scenario & Parameter Selection (Step 1)**: Security Engineer selects an attack template from the OWASP Top 10 for LLMs suite (`LLM01–LLM11`, `AGENT01`) or custom templates, configures sampling parameters (`Temperature`, `Top-P`, `Top-K`), and sets up simulated tools via BrainCircuit.
-2. **Payload Debugging (Step 2 - Optional)**: Operator opens the **Prompt Payload Debugger Modal** to inspect raw system/user payloads before dispatch, using built-in keyword regex highlighting to identify prompt injection terms.
-3. **Format-Guarded Dispatch (Step 3)**: User prompt is dispatched with a mandatory **Global Format Guard** appended to the system instruction, forcing structured `SECTION:`/`BULLET:` or `json_table`/`json_chart` responses for UI rendering safety.
-4. **LLM Integration & Provider Routing (Step 4)**: `llmService.ts` checks browser LocalStorage cache for a matching prompt hash. If uncached, it routes to the target provider:
-   - **Google Gemini API** (Gemini 2.5 / 3.5 Flash via Google SDK)
-   - **OpenAI API** (GPT-4o / GPT-4 via REST `api.openai.com`)
-   - **Anthropic API** (Claude 3.5 Sonnet / Opus / Haiku via REST `api.anthropic.com`)
-   - **Local Ollama REST Host** (`http://localhost:11434` for Llama 3, Mistral, CodeLlama with `OLLAMA_ORIGINS="*"`)
-5. **Streaming Response & Tool Execution (Step 5)**: Response tokens stream into the **Interactive Chat Workspace**, rendering responses and simulated tool calls (e.g., `StockChecker`, `DatabaseQuery`, `FilePlugin`) in real time.
-6. **Adversarial Meta-Agent Sub-Loop (Step 6)**: When **Adversarial Mode** is active (clicking the `"TARGET"` button), **Agent 2 (Red Team Adversary)** performs context fusion—analyzing the Target AI's secret system prompt, the adversarial goal, and chat history to auto-fill the next optimal attack prompt into the input box.
-7. **AISecOps Defense Analysis Sub-Loop (Step 7)**: Clicking **"Analyze"** dispatches full chat dialogue to **Agent 3 (AISecOps Analyst)**, a hidden Gemini security session. It parses `SECTION:`/`BULLET:` reports into the **Defense Analysis Dashboard** (Threat Vectors Identified, Impact Assessment, Risk Rating, and Defense Recommendations).
+1. **Scenario & Parameter Selection (Step 1)**: User selects an OWASP attack template and configures sampling parameters in the Control & Configuration Panel.
+2. **Payload Inspection (Step 2 - Optional)**: User previews raw system/user payloads in the Prompt Payload Debugger Modal to inspect injection keywords prior to transmission.
+3. **Format-Guarded Dispatch (Step 3)**: User dispatches the attack prompt to the Interactive Chat Workspace, which applies a mandatory Global Format Guard to the system instruction.
+4. **API Router & Cache Lookup (Step 4)**: The workspace sends payload & tool definitions to `llmService.ts`. If an identical prompt hash exists in browser cache (Zone 3), cached tokens return immediately; otherwise, requests route via API/SDK to Gemini, OpenAI, Anthropic Claude (Zone 4), or local Ollama (Zone 5).
+5. **Streaming Response & Tool Execution (Step 5)**: `llmService.ts` streams response tokens and simulated tool executions (e.g. `StockChecker`, `DatabaseQuery`, `FilePlugin`) back to the UI.
+6. **Adversarial Red Team Evaluation (Step 6)**: If Adversarial Mode is active, Agent 2 (Red Team Adversary) analyzes the target system prompt, adversarial goal, and chat history to formulate the next optimal attack step.
+7. **Adversarial Prompt Auto-Fill (Step 7)**: Red Team Adversary auto-fills the chat input box with a context-aware attack prompt suggestion.
+8. **Defense Audit Dispatch (Step 8)**: When the user clicks "Analyze", the full conversation transcript is sent to Agent 3 (AISecOps Analyst).
+9. **AISecOps Report Generation (Step 9)**: The AISecOps Analyst evaluates the conversation against OWASP LLM vulnerabilities and generates a structured threat report.
+10. **Dashboard Report Rendering (Step 10)**: The report is parsed (`SECTION:` / `BULLET:`) and displayed in the Defense Analysis Dashboard (Threat Vectors Identified, Impact Assessment, Risk Rating, and Remediation Recommendations).
 
 ---
 
