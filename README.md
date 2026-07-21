@@ -28,7 +28,7 @@ GlyphBreaker is more than a chat interface; it's a complete, integrated security
     -   Your custom library is persisted in browser storage, creating a personalized and powerful testing toolkit.
 
 -   **Multi-Provider Support & Comparison**:
-    -   Seamlessly switch between leading AI providers (**Gemini**, **OpenAI**) and local models (**Ollama**) to benchmark their resilience against the same attack vectors.
+    -   Seamlessly switch between leading AI providers (**Gemini**, **OpenAI**, **Anthropic Claude**) and local models (**Ollama**) to benchmark their resilience against the same attack vectors.
     -   Identify which models and configurations are most robust for your specific use case.
 
 -   **Interactive Prompt Debugger**:
